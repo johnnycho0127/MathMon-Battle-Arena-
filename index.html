@@ -297,8 +297,20 @@
     .anim-sf-attack-2 { animation: sfComboPunchLeft 0.72s cubic-bezier(0.18, 0.89, 0.32, 1.28); transform-origin: bottom center; }
 
     .live-character-cutout {
-      filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 10px rgba(250, 204, 21, 0.45));
+      filter: drop-shadow(0 14px 14px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 12px rgba(250, 204, 21, 0.55));
       transition: transform 0.15s ease;
+      transform-style: preserve-3d;
+    }
+
+    @keyframes float3DCharacter {
+      0%, 100% { transform: perspective(500px) rotateY(-8deg) rotateX(4deg) translateY(0px) scale(1); }
+      25% { transform: perspective(500px) rotateY(6deg) rotateX(-3deg) translateY(-7px) scale(1.03); }
+      50% { transform: perspective(500px) rotateY(10deg) rotateX(3deg) translateY(-2px) scale(0.99); }
+      75% { transform: perspective(500px) rotateY(-5deg) rotateX(-4deg) translateY(-8px) scale(1.04); }
+    }
+
+    .anim-3d-fighter {
+      animation: float3DCharacter 1.8s ease-in-out infinite;
     }
 
     .arena-platform {
@@ -1336,14 +1348,70 @@
     };
 
     // --- 5. SETUP SCREEN & PHYSICAL CARD SCANNER SYSTEM ---
+    function getActiveGeminiApiKey() {
+      try {
+        return localStorage.getItem('mathmon_gemini_api_key') || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    async function fetchWithRetry(url, options, maxRetries = 2) {
+      let attempt = 0;
+      while (attempt <= maxRetries) {
+        try {
+          const response = await fetch(url, options);
+          if (response.ok || response.status < 500) return response;
+        } catch (err) {
+          if (attempt === maxRetries) return null;
+        }
+        await new Promise((res) => setTimeout(res, 450 * (attempt + 1)));
+        attempt += 1;
+      }
+      return null;
+    }
+
+    function renderSetupCards(specificPlayerNum = null) {
+      const players = specificPlayerNum ? [specificPlayerNum] : [1, 2];
+      players.forEach((pNum) => {
+        const pObj = pNum === 1 ? state.p1 : state.p2;
+        const previewEl = pNum === 1 ? el.p1PreviewMonster : el.p2PreviewMonster;
+        const elemLabel = pNum === 1 ? el.p1ElementLabel : el.p2ElementLabel;
+        const statusBadge = pNum === 1 ? el.p1CardStatusBadge : el.p2CardStatusBadge;
+        const thumbWrap = pNum === 1 ? el.p1ScannedThumbWrap : el.p2ScannedThumbWrap;
+        const thumbImg = pNum === 1 ? el.p1ScannedImg : el.p2ScannedImg;
+
+        elemLabel.textContent = `${pObj.monster.icon} ${pObj.monster.element} Spirit`;
+
+        if (pObj.cutoutSpriteDataUrl) {
+          previewEl.innerHTML = `<img src="${pObj.cutoutSpriteDataUrl}" alt="${pObj.customName}" class="w-full h-full object-contain live-character-cutout anim-3d-fighter" />`;
+          statusBadge.textContent = '3D FIGHTER READY';
+          statusBadge.className = 'px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/50 text-[10px] font-extrabold';
+        } else {
+          previewEl.innerHTML = pObj.monster.svg;
+          statusBadge.textContent = pObj.scannedCardDataUrl ? 'CARD SCANNED' : 'READY TO SCAN';
+          statusBadge.className = pObj.scannedCardDataUrl
+            ? 'px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/50 text-[10px] font-extrabold'
+            : 'px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-extrabold';
+        }
+
+        if (pObj.scannedCardDataUrl) {
+          thumbImg.src = pObj.scannedCardDataUrl;
+          thumbWrap.classList.remove('hidden');
+        } else {
+          thumbWrap.classList.add('hidden');
+        }
+      });
+    }
+
     function buildLiveFighterMarkup(pObj, sideNum) {
-      // If we extracted a clean cutout character sprite from the scanned card, render it moving freely like a Street Fighter character!
+      // If we extracted a clean 3D cutout character sprite from the scanned card, render it moving freely in 3D!
       if (pObj.cutoutSpriteDataUrl) {
         const flipClass = sideNum === 2 ? 'scale-x-[-1]' : '';
         return `
-          <div class="relative w-full h-full flex flex-col items-center justify-end">
+          <div class="relative w-full h-full flex flex-col items-center justify-end anim-3d-fighter">
             <img src="${pObj.cutoutSpriteDataUrl}" alt="${pObj.customName}" class="live-character-cutout w-full h-[88%] object-contain ${flipClass}" />
-            <div class="mt-0.5 px-2 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/70 text-[10px] sm:text-xs font-extrabold text-amber-300 uppercase tracking-wide shadow">
+            <div class="mt-0.5 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/80 text-[10px] sm:text-xs font-extrabold text-amber-300 uppercase tracking-wide shadow-lg">
               ${pObj.monster.icon} ${pObj.customName}
             </div>
           </div>
@@ -1364,108 +1432,91 @@
           </div>
         `;
       }
-      // Fallback animated SVG spirit if they didn't scan a card yet
       return pObj.monster.svg;
     }
 
-    function renderSetupCards(animatePlayer = null) {
-      [1, 2].forEach((pNum) => {
-        const pObj = pNum === 1 ? state.p1 : state.p2;
-        const previewEl = pNum === 1 ? el.p1PreviewMonster : el.p2PreviewMonster;
-        const elemLabel = pNum === 1 ? el.p1ElementLabel : el.p2ElementLabel;
-        const thumbWrap = pNum === 1 ? el.p1ScannedThumbWrap : el.p2ScannedThumbWrap;
-        const thumbImg = pNum === 1 ? el.p1ScannedImg : el.p2ScannedImg;
-        const badgeEl = pNum === 1 ? el.p1CardStatusBadge : el.p2CardStatusBadge;
+    // Enhance image contrast & crop top header strip for accurate phone OCR of Name & HP
+    function preprocessCardForPhoneOCR(dataUrl) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          // 1) High-contrast full card resize for crisp mobile Vision/OCR
+          const maxW = 900;
+          const scale = Math.min(1, maxW / img.width);
+          const fullCanvas = document.createElement('canvas');
+          fullCanvas.width = Math.round(img.width * scale);
+          fullCanvas.height = Math.round(img.height * scale);
+          const fCtx = fullCanvas.getContext('2d');
+          fCtx.filter = 'contrast(1.22) saturate(1.15)';
+          fCtx.drawImage(img, 0, 0, fullCanvas.width, fullCanvas.height);
 
-        // Show the live animated card character right in the setup preview once scanned!
-        if (pObj.scannedCardDataUrl || pObj.cutoutSpriteDataUrl) {
-          previewEl.innerHTML = buildLiveFighterMarkup(pObj, pNum);
-          previewEl.className = `w-20 h-24 shrink-0 flex items-center justify-center ${pNum === 1 ? 'anim-sf-idle-1' : 'anim-sf-idle-2'}`;
-          if (pObj.scannedCardDataUrl && pObj.cutoutSpriteDataUrl) {
-            thumbImg.src = pObj.scannedCardDataUrl;
-            thumbWrap.classList.remove('hidden');
-          } else {
-            thumbWrap.classList.add('hidden');
-          }
-          badgeEl.textContent = `✓ ${pObj.maxHp} HP LIVE FIGHTER`;
-          badgeEl.className = 'px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 text-[10px] font-extrabold';
-        } else {
-          previewEl.innerHTML = pObj.monster.svg;
-          previewEl.className = `w-24 h-24 shrink-0 flex items-center justify-center ${pNum === 1 ? 'anim-idle-1' : 'anim-idle-2'}`;
-          thumbWrap.classList.add('hidden');
-          badgeEl.textContent = 'READY TO SCAN';
-          badgeEl.className = 'px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-extrabold';
-        }
+          // 2) Top 24% strip where Character Name & HP ("60 HP") are printed on Pokémon/trading cards
+          const headerCanvas = document.createElement('canvas');
+          headerCanvas.width = fullCanvas.width;
+          headerCanvas.height = Math.max(80, Math.round(fullCanvas.height * 0.24));
+          const hCtx = headerCanvas.getContext('2d');
+          hCtx.filter = 'grayscale(1) contrast(1.65) brightness(1.08)';
+          hCtx.drawImage(fullCanvas, 0, 0, fullCanvas.width, headerCanvas.height, 0, 0, headerCanvas.width, headerCanvas.height);
 
-        elemLabel.textContent = `${pObj.monster.icon} ${pObj.monster.element} Spirit`;
-
-        if (animatePlayer === pNum) {
-          previewEl.classList.remove('anim-materialize');
-          void previewEl.offsetWidth; // trigger reflow
-          previewEl.classList.add('anim-materialize');
-        }
+          resolve({
+            cleanFullDataUrl: fullCanvas.toDataURL('image/jpeg', 0.9),
+            headerStripDataUrl: headerCanvas.toDataURL('image/png')
+          });
+        };
+        img.onerror = () => resolve({ cleanFullDataUrl: dataUrl, headerStripDataUrl: dataUrl });
+        img.src = dataUrl;
       });
     }
 
-    // Exponential backoff fetch helper for Gemini API calls
-    function getActiveGeminiApiKey() {
-      try {
-        return localStorage.getItem('mathmon_gemini_api_key') || "";
-      } catch (e) {
-        return "";
-      }
-    }
-
-    async function fetchWithRetry(url, options, maxRetries = 2) {
-      let delay = 800;
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        const response = await fetch(url, options);
-        if (response.ok) return response;
-        if (attempt === maxRetries) return response;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        delay *= 2;
-      }
-    }
-
-    // On-device fallback OCR using Tesseract.js so GitHub Pages reads real card Name & HP offline!
+    // On-device fallback OCR using Tesseract.js on both the top Name/HP header strip and full card
     async function recognizeCardOfflineOCR(dataUrl) {
       try {
         if (!window.Tesseract) return null;
-        const result = await window.Tesseract.recognize(dataUrl, 'eng');
-        const rawText = result?.data?.text || '';
-        const lines = rawText
-          .split('\n')
-          .map((l) => l.replace(/[^a-zA-Z0-9\s-]/g, '').trim())
-          .filter((l) => l.length >= 2);
+        const { cleanFullDataUrl, headerStripDataUrl } = await preprocessCardForPhoneOCR(dataUrl);
 
-        // Look for HP pattern like "HP 60", "60 HP", "120HP"
+        // Read the top header strip first where Name and HP are located
+        const headerRes = await window.Tesseract.recognize(headerStripDataUrl, 'eng');
+        const fullRes = await window.Tesseract.recognize(cleanFullDataUrl, 'eng');
+        const headerText = headerRes?.data?.text || '';
+        const fullText = fullRes?.data?.text || '';
+        const combinedText = `${headerText}\n${fullText}`;
+
+        // Look for HP pattern like "HP 60", "60 HP", "HP120", or standalone 2-3 digit multiple of 10 in header
         let detectedHp = null;
-        const hpMatch = rawText.match(/(?:HP\s*([1-9][0-9]{1,2})|([1-9][0-9]{1,2})\s*HP)/i);
+        const hpMatch = combinedText.match(/(?:HP\s*([1-9][0-9]{1,2})|([1-9][0-9]{1,2})\s*HP)/i);
         if (hpMatch) {
           detectedHp = parseInt(hpMatch[1] || hpMatch[2], 10);
+        } else {
+          const headerNums = headerText.match(/\b([3-9]0|[1-3][0-9]0)\b/);
+          if (headerNums) detectedHp = parseInt(headerNums[1], 10);
         }
 
-        // Extract top card title line (ignoring Basic / Stage / HP header noise)
+        // Extract top card title line from the header strip
+        const lines = headerText
+          .split('\n')
+          .concat(fullText.split('\n').slice(0, 4))
+          .map((l) => l.replace(/[^a-zA-Z\s-]/g, '').trim())
+          .filter((l) => l.length >= 3);
+
         let detectedName = null;
-        for (const line of lines.slice(0, 5)) {
+        for (const line of lines) {
           const cleanedName = line
-            .replace(/\b(BASIC|STAGE\s*1|STAGE\s*2|VMAX|VSTAR|GX|EX|HP|NO|LV)\b/gi, '')
-            .replace(/[0-9]+/g, '')
+            .replace(/\b(BASIC|STAGE|VMAX|VSTAR|GX|EX|HP|NO|LV|EVOLVES|FROM|ABILITY|WEAKNESS|RESISTANCE)\b/gi, '')
             .trim();
           if (cleanedName.length >= 3 && cleanedName.length <= 18) {
-            detectedName = cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1);
+            detectedName = cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1).toLowerCase();
             break;
           }
         }
 
         // Detect elemental keyword if visible on card
         let detectedElement = null;
-        if (/fire|flame|ember|blaze|char/i.test(rawText)) detectedElement = 'Fire';
-        else if (/water|aqua|hydro|bubble|squirt/i.test(rawText)) detectedElement = 'Water';
-        else if (/grass|leaf|vine|seed|bulba/i.test(rawText)) detectedElement = 'Grass';
-        else if (/psychic|shadow|ghost|mind|mew/i.test(rawText)) detectedElement = 'Psychic';
-        else if (/fighting|rock|earth|ground|stone/i.test(rawText)) detectedElement = 'Earth';
-        else if (/lightning|electric|spark|volt|pika/i.test(rawText)) detectedElement = 'Electric';
+        if (/fire|flame|ember|blaze|char|flare|moltres|torch/i.test(combinedText)) detectedElement = 'Fire';
+        else if (/water|aqua|hydro|bubble|squirt|blast|vap|tide/i.test(combinedText)) detectedElement = 'Water';
+        else if (/grass|leaf|vine|seed|bulba|ivy|venus|sprout/i.test(combinedText)) detectedElement = 'Grass';
+        else if (/psychic|shadow|ghost|mind|mew|gengar|esp/i.test(combinedText)) detectedElement = 'Psychic';
+        else if (/fighting|rock|earth|ground|stone|onyx|mach/i.test(combinedText)) detectedElement = 'Earth';
+        else if (/lightning|electric|spark|volt|pika|raichu|zap/i.test(combinedText)) detectedElement = 'Electric';
 
         if (!detectedName && !detectedHp) return null;
         return {
@@ -1478,10 +1529,11 @@
       }
     }
 
-    // Recognize real Character Name, real HP, and Element (Tries Gemini Vision first, falls back to On-Device OCR on GitHub Pages!)
+    // Recognize real Character Name, real HP, and Element (Tries Gemini Vision first, falls back to enhanced Phone OCR!)
     async function recognizeCardDetailsWithAI(dataUrl) {
       try {
-        const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+        const { cleanFullDataUrl } = await preprocessCardForPhoneOCR(dataUrl);
+        const match = cleanFullDataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
         if (!match) return await recognizeCardOfflineOCR(dataUrl);
         const mimeType = match[1];
         const base64Data = match[2];
@@ -1495,7 +1547,7 @@
               role: "user",
               parts: [
                 {
-                  text: "Inspect this trading card / Pokémon card image. Extract the exact character/creature name printed on the card, the exact numeric HP value printed on the card (e.g., 60, 70, 120, 200), and its elemental type (Electric, Fire, Water, Grass, Psychic, or Earth). If a field is unclear, make your best reading."
+                  text: "Inspect this trading card / Pokémon card image carefully. Extract the exact character/creature name printed at the top of the card, the exact numeric HP value printed next to HP at the top right (e.g., 60, 70, 120, 200), and its elemental type (Electric, Fire, Water, Grass, Psychic, or Earth)."
                 },
                 {
                   inlineData: {
@@ -1541,36 +1593,54 @@
       }
     }
 
-    // On-device fallback artwork extractor: crops the character illustration window from the card & keys out background so it animates live on GitHub Pages!
+    // On-device 3D Character Cutout Extractor: removes background colors around the character artwork & applies 3D rim shading so it looks like a 3D fighter even offline on GitHub Pages!
     function extractArtworkWindowFallback(dataUrl) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          // Trading card artwork sits in the upper-middle illustration window
-          const sx = Math.round(img.width * 0.12);
-          const sy = Math.round(img.height * 0.14);
-          const sw = Math.round(img.width * 0.76);
-          const sh = Math.round(img.height * 0.44);
+          // Crop character artwork window in the upper-middle of the card
+          const sx = Math.round(img.width * 0.14);
+          const sy = Math.round(img.height * 0.15);
+          const sw = Math.round(img.width * 0.72);
+          const sh = Math.round(img.height * 0.42);
 
           canvas.width = 240;
-          canvas.height = 220;
+          canvas.height = 240;
           const ctx = canvas.getContext('2d');
+          ctx.filter = 'contrast(1.18) saturate(1.32)';
+          ctx.drawImage(img, sx, sy, sw, sh, 10, 10, 220, 220);
 
-          // Draw character portrait inside a glowing energy-aura medallion
-          ctx.save();
-          ctx.beginPath();
-          ctx.roundRect(12, 10, 216, 198, 36);
-          ctx.clip();
-          ctx.drawImage(img, sx, sy, sw, sh, 12, 10, 216, 198);
-          ctx.restore();
+          // Sample outer edge pixels of the illustration to key out background into a floating 3D figure
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+          const edgeR = d[(15 * canvas.width + 15) * 4];
+          const edgeG = d[(15 * canvas.width + 15) * 4 + 1];
+          const edgeB = d[(15 * canvas.width + 15) * 4 + 2];
 
-          // Add glowing arcade fighter rim
-          ctx.lineWidth = 6;
-          ctx.strokeStyle = '#facc15';
-          ctx.beginPath();
-          ctx.roundRect(12, 10, 216, 198, 36);
-          ctx.stroke();
+          for (let y = 0; y < canvas.height; y++) {
+            for (let x = 0; x < canvas.width; x++) {
+              const idx = (y * canvas.width + x) * 4;
+              const dx = (x - 120) / 110;
+              const dy = (y - 120) / 110;
+              const radialDist = Math.sqrt(dx * dx + dy * dy);
+              const colorDist = Math.sqrt((d[idx] - edgeR) ** 2 + (d[idx + 1] - edgeG) ** 2 + (d[idx + 2] - edgeB) ** 2);
+
+              if (radialDist > 0.96 || (radialDist > 0.65 && colorDist < 52)) {
+                d[idx + 3] = 0;
+              }
+            }
+          }
+          ctx.putImageData(imgData, 0, 0);
+
+          // Add 3D specular highlight & rim glow around the character
+          ctx.globalCompositeOperation = 'source-atop';
+          const grad = ctx.createLinearGradient(0, 0, 240, 240);
+          grad.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+          grad.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+          grad.addColorStop(1, 'rgba(15, 23, 42, 0.35)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, 240, 240);
 
           resolve(canvas.toDataURL('image/png'));
         };
@@ -1579,10 +1649,11 @@
       });
     }
 
-    // Extract a live full-body fighting character cutout from the scanned card (Gemini Image first, fallback to smart artwork crop on GitHub Pages)
+    // Generate a 3D-rendered fighting character from the scanned card (Gemini 3D Image first, fallback to 3D cutout extractor on GitHub Pages)
     async function extractLiveCharacterCutout(dataUrl, charName) {
       try {
-        const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+        const { cleanFullDataUrl } = await preprocessCardForPhoneOCR(dataUrl);
+        const match = cleanFullDataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
         if (!match) return await extractArtworkWindowFallback(dataUrl);
         const mimeType = match[1];
         const base64Data = match[2];
@@ -1596,7 +1667,7 @@
               role: "user",
               parts: [
                 {
-                  text: `Extract the main creature/character (${charName}) from this trading card as a dynamic full-body arcade fighting-game character in an active battle pose facing right, isolated cleanly on a pure solid magenta (#FF00FF) background with NO card borders, NO text, and NO UI boxes.`
+                  text: `Transform the creature/character (${charName}) from this trading card into a vibrant, stylized 3D-rendered full-body fighting game character model in an active martial-arts battle stance facing right, with rich 3D lighting and depth, isolated cleanly on a pure solid magenta (#FF00FF) background with NO card borders, NO text, and NO UI boxes.`
                 },
                 {
                   inlineData: {
@@ -1631,118 +1702,6 @@
         return await keyOutSolidBackground(rawCutoutUrl);
       } catch (err) {
         return await extractArtworkWindowFallback(dataUrl);
-      }
-    }
-
-    // Recognize real Character Name, real HP, and Element from the scanned card image using Gemini Vision
-    async function recognizeCardDetailsWithAI(dataUrl) {
-      try {
-        const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
-        if (!match) return null;
-        const mimeType = match[1];
-        const base64Data = match[2];
-
-        const apiKey = "";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-
-        const payload = {
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: "Inspect this trading card / Pokémon card image. Extract the exact character/creature name printed on the card, the exact numeric HP value printed on the card (e.g., 60, 70, 120, 200), and its elemental type (Electric, Fire, Water, Grass, Psychic, or Earth). If a field is unclear, make your best reading."
-                },
-                {
-                  inlineData: {
-                    mimeType: mimeType,
-                    data: base64Data
-                  }
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "OBJECT",
-              properties: {
-                characterName: { type: "STRING" },
-                hp: { type: "INTEGER" },
-                element: {
-                  type: "STRING",
-                  enum: ["Electric", "Fire", "Water", "Grass", "Psychic", "Earth"]
-                }
-              },
-              required: ["characterName", "hp", "element"]
-            }
-          }
-        };
-
-        const resp = await fetchWithRetry(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!resp || !resp.ok) return null;
-        const json = await resp.json();
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) return null;
-        return JSON.parse(text);
-      } catch (err) {
-        return null;
-      }
-    }
-
-    // Extract a live full-body fighting character cutout from the scanned card using Gemini Image Editing
-    async function extractLiveCharacterCutout(dataUrl, charName) {
-      try {
-        const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
-        if (!match) return null;
-        const mimeType = match[1];
-        const base64Data = match[2];
-
-        const apiKey = "";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
-
-        const payload = {
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: `Extract the main creature/character (${charName}) from this trading card as a dynamic full-body arcade fighting-game character in an active battle pose facing right, isolated cleanly on a pure solid magenta (#FF00FF) background with NO card borders, NO text, and NO UI boxes.`
-                },
-                {
-                  inlineData: {
-                    mimeType: mimeType,
-                    data: base64Data
-                  }
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            responseModalities: ['IMAGE']
-          }
-        };
-
-        const resp = await fetchWithRetry(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!resp || !resp.ok) return null;
-        const result = await resp.json();
-        const part = result?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
-        if (!part || !part.inlineData?.data) return null;
-
-        const rawCutoutUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-        return await keyOutSolidBackground(rawCutoutUrl);
-      } catch (err) {
-        return null;
       }
     }
 
