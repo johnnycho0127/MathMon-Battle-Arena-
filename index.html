@@ -811,6 +811,16 @@
         </div>
       </div>
 
+      <!-- GitHub Pages AI Upgrade Tip Banner -->
+      <div id="githubAiTipBanner" class="hidden px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-400/50 flex items-center justify-between gap-2">
+        <span class="text-[11px] text-amber-200 font-semibold leading-tight">
+          Want full 3D AI character models on GitHub? Add a free Gemini key!
+        </span>
+        <button id="btnOpenKeyFromScanner" type="button" class="shrink-0 px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-extrabold text-[11px]">
+          🔑 Add Key
+        </button>
+      </div>
+
       <!-- AI Recognition Status Banner -->
       <div id="scanAiStatus" class="hidden px-3 py-2 rounded-xl bg-indigo-950/90 border border-indigo-400/50 text-xs font-bold text-indigo-200 flex items-center gap-2">
         <span class="w-3.5 h-3.5 rounded-full border-2 border-cyan-300 border-t-transparent animate-spin shrink-0"></span>
@@ -1273,6 +1283,8 @@
       laserScanLine: document.getElementById('laserScanLine'),
       scanModalNameInput: document.getElementById('scanModalNameInput'),
       scanModalHpInput: document.getElementById('scanModalHpInput'),
+      githubAiTipBanner: document.getElementById('githubAiTipBanner'),
+      btnOpenKeyFromScanner: document.getElementById('btnOpenKeyFromScanner'),
       scanAiStatus: document.getElementById('scanAiStatus'),
       scanAiStatusText: document.getElementById('scanAiStatusText'),
       btnCaptureCard: document.getElementById('btnCaptureCard'),
@@ -1436,30 +1448,36 @@
     }
 
     // Enhance image contrast & crop top header strip for accurate phone OCR of Name & HP
-    function preprocessCardForPhoneOCR(dataUrl) {
+    function preprocessCardForPhoneOCR(dataUrl, flipHorizontal = false) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
-          // 1) High-contrast full card resize for crisp mobile Vision/OCR
-          const maxW = 900;
+          // 1) High-contrast full card resize (and un-mirror if captured from front selfie camera)
+          const maxW = 960;
           const scale = Math.min(1, maxW / img.width);
           const fullCanvas = document.createElement('canvas');
           fullCanvas.width = Math.round(img.width * scale);
           fullCanvas.height = Math.round(img.height * scale);
           const fCtx = fullCanvas.getContext('2d');
-          fCtx.filter = 'contrast(1.22) saturate(1.15)';
+          fCtx.save();
+          if (flipHorizontal) {
+            fCtx.translate(fullCanvas.width, 0);
+            fCtx.scale(-1, 1);
+          }
+          fCtx.filter = 'contrast(1.25) saturate(1.18)';
           fCtx.drawImage(img, 0, 0, fullCanvas.width, fullCanvas.height);
+          fCtx.restore();
 
-          // 2) Top 24% strip where Character Name & HP ("60 HP") are printed on Pokémon/trading cards
+          // 2) Top 32% strip where Character Name & HP ("70 HP") are printed on Pokémon/trading cards
           const headerCanvas = document.createElement('canvas');
           headerCanvas.width = fullCanvas.width;
-          headerCanvas.height = Math.max(80, Math.round(fullCanvas.height * 0.24));
+          headerCanvas.height = Math.max(100, Math.round(fullCanvas.height * 0.32));
           const hCtx = headerCanvas.getContext('2d');
-          hCtx.filter = 'grayscale(1) contrast(1.65) brightness(1.08)';
+          hCtx.filter = 'grayscale(1) contrast(1.85) brightness(1.1)';
           hCtx.drawImage(fullCanvas, 0, 0, fullCanvas.width, headerCanvas.height, 0, 0, headerCanvas.width, headerCanvas.height);
 
           resolve({
-            cleanFullDataUrl: fullCanvas.toDataURL('image/jpeg', 0.9),
+            cleanFullDataUrl: fullCanvas.toDataURL('image/jpeg', 0.92),
             headerStripDataUrl: headerCanvas.toDataURL('image/png')
           });
         };
@@ -1468,20 +1486,60 @@
       });
     }
 
-    // On-device fallback OCR using Tesseract.js on both the top Name/HP header strip and full card
+    // Built-in popular card names for instant fuzzy correction on offline phone OCR
+    const KNOWN_CARD_NAMES = [
+      'Pikachu', 'Raichu', 'Charmander', 'Charmeleon', 'Charizard', 'Squirtle', 'Wartortle', 'Blastoise',
+      'Bulbasaur', 'Ivysaur', 'Venusaur', 'Eevee', 'Vaporeon', 'Jolteon', 'Flareon', 'Umbreon', 'Espeon',
+      'Gengar', 'Haunter', 'Gastly', 'Mewtwo', 'Mew', 'Lucario', 'Riolu', 'Greninja', 'Froakie',
+      'Snorlax', 'Dragonite', 'Gyarados', 'Magikarp', 'Arcanine', 'Growlithe', 'Machamp', 'Onix',
+      'Geodude', 'Roggenrola', 'Boldore', 'Gigalith', 'Shellos', 'Gastrodon', 'Piplup', 'Chimchar',
+      'Turtwig', 'Rayquaza', 'Lugia', 'Ho-Oh', 'Gardevoir', 'Sylveon', 'Mimikyu', 'Zoroark', 'Cinderace'
+    ];
+
+    function findClosestKnownCardName(rawText) {
+      const words = rawText.replace(/[^a-zA-Z\s-]/g, ' ').split(/\s+/).filter((w) => w.length >= 4);
+      for (const word of words) {
+        const lower = word.toLowerCase();
+        const exact = KNOWN_CARD_NAMES.find((n) => n.toLowerCase() === lower);
+        if (exact) return exact;
+        // Allow 1-2 character OCR typo tolerance (e.g. "Roggenroia" -> "Roggenrola")
+        for (const known of KNOWN_CARD_NAMES) {
+          if (Math.abs(known.length - lower.length) <= 2 && known.slice(0, 3).toLowerCase() === lower.slice(0, 3)) {
+            let matches = 0;
+            for (let i = 0; i < Math.min(known.length, lower.length); i++) {
+              if (known[i].toLowerCase() === lower[i]) matches++;
+            }
+            if (matches >= known.length - 2) return known;
+          }
+        }
+      }
+      return null;
+    }
+
+    // On-device fallback OCR using Tesseract.js (handles both normal & mirrored front-camera images!)
     async function recognizeCardOfflineOCR(dataUrl) {
       try {
         if (!window.Tesseract) return null;
-        const { cleanFullDataUrl, headerStripDataUrl } = await preprocessCardForPhoneOCR(dataUrl);
+        const normalPrep = await preprocessCardForPhoneOCR(dataUrl, false);
+        const headerRes = await window.Tesseract.recognize(normalPrep.headerStripDataUrl, 'eng');
+        let headerText = headerRes?.data?.text || '';
 
-        // Read the top header strip first where Name and HP are located
-        const headerRes = await window.Tesseract.recognize(headerStripDataUrl, 'eng');
-        const fullRes = await window.Tesseract.recognize(cleanFullDataUrl, 'eng');
-        const headerText = headerRes?.data?.text || '';
+        // If nothing readable was found, try un-mirroring in case user held card up to front selfie camera
+        let usedDataUrl = normalPrep.cleanFullDataUrl;
+        if (headerText.replace(/[^a-zA-Z0-9]/g, '').length < 4) {
+          const flippedPrep = await preprocessCardForPhoneOCR(dataUrl, true);
+          const flippedRes = await window.Tesseract.recognize(flippedPrep.headerStripDataUrl, 'eng');
+          if ((flippedRes?.data?.text || '').replace(/[^a-zA-Z0-9]/g, '').length > headerText.replace(/[^a-zA-Z0-9]/g, '').length) {
+            headerText = flippedRes.data.text;
+            usedDataUrl = flippedPrep.cleanFullDataUrl;
+          }
+        }
+
+        const fullRes = await window.Tesseract.recognize(usedDataUrl, 'eng');
         const fullText = fullRes?.data?.text || '';
         const combinedText = `${headerText}\n${fullText}`;
 
-        // Look for HP pattern like "HP 60", "60 HP", "HP120", or standalone 2-3 digit multiple of 10 in header
+        // Look for HP pattern like "HP 70", "70 HP", "HP120", or standalone multiple of 10 in header
         let detectedHp = null;
         const hpMatch = combinedText.match(/(?:HP\s*([1-9][0-9]{1,2})|([1-9][0-9]{1,2})\s*HP)/i);
         if (hpMatch) {
@@ -1491,38 +1549,41 @@
           if (headerNums) detectedHp = parseInt(headerNums[1], 10);
         }
 
-        // Extract top card title line from the header strip
-        const lines = headerText
-          .split('\n')
-          .concat(fullText.split('\n').slice(0, 4))
-          .map((l) => l.replace(/[^a-zA-Z\s-]/g, '').trim())
-          .filter((l) => l.length >= 3);
+        // First check known Pokémon names (fixes typos like "Roggenroia" or mirrored text), then fall back to clean 4+ letter words
+        let detectedName = findClosestKnownCardName(combinedText);
+        if (!detectedName) {
+          const lines = headerText
+            .split('\n')
+            .concat(fullText.split('\n').slice(0, 5))
+            .map((l) => l.replace(/[^a-zA-Z\s-]/g, '').trim())
+            .filter((l) => l.length >= 4);
 
-        let detectedName = null;
-        for (const line of lines) {
-          const cleanedName = line
-            .replace(/\b(BASIC|STAGE|VMAX|VSTAR|GX|EX|HP|NO|LV|EVOLVES|FROM|ABILITY|WEAKNESS|RESISTANCE)\b/gi, '')
-            .trim();
-          if (cleanedName.length >= 3 && cleanedName.length <= 18) {
-            detectedName = cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1).toLowerCase();
-            break;
+          for (const line of lines) {
+            const cleanedName = line
+              .replace(/\b(BASIC|STAGE|VMAX|VSTAR|GX|EX|HP|NO|LV|EVOLVES|FROM|ABILITY|WEAKNESS|RESISTANCE|POKEMON|ILLUS)\b/gi, '')
+              .trim();
+            // Require at least 4 letters and at least 1 vowel so garbage like "ll" or "tt" is ignored
+            if (cleanedName.length >= 4 && cleanedName.length <= 18 && /[aeiouy]/i.test(cleanedName)) {
+              detectedName = cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1).toLowerCase();
+              break;
+            }
           }
         }
 
         // Detect elemental keyword if visible on card
         let detectedElement = null;
         if (/fire|flame|ember|blaze|char|flare|moltres|torch/i.test(combinedText)) detectedElement = 'Fire';
-        else if (/water|aqua|hydro|bubble|squirt|blast|vap|tide/i.test(combinedText)) detectedElement = 'Water';
+        else if (/water|aqua|hydro|bubble|squirt|blast|vap|tide|shellos/i.test(combinedText)) detectedElement = 'Water';
         else if (/grass|leaf|vine|seed|bulba|ivy|venus|sprout/i.test(combinedText)) detectedElement = 'Grass';
         else if (/psychic|shadow|ghost|mind|mew|gengar|esp/i.test(combinedText)) detectedElement = 'Psychic';
-        else if (/fighting|rock|earth|ground|stone|onyx|mach/i.test(combinedText)) detectedElement = 'Earth';
+        else if (/fighting|rock|earth|ground|stone|onyx|mach|roggenrola/i.test(combinedText)) detectedElement = 'Earth';
         else if (/lightning|electric|spark|volt|pika|raichu|zap/i.test(combinedText)) detectedElement = 'Electric';
 
         if (!detectedName && !detectedHp) return null;
         return {
-          characterName: detectedName || 'Card Fighter',
-          hp: detectedHp || 60,
-          element: detectedElement || 'Electric'
+          characterName: detectedName || null,
+          hp: detectedHp || null,
+          element: detectedElement || null
         };
       } catch (e) {
         return null;
@@ -1592,55 +1653,55 @@
         return await recognizeCardOfflineOCR(dataUrl);
       }
     }
-
-    // On-device 3D Character Cutout Extractor: removes background colors around the character artwork & applies 3D rim shading so it looks like a 3D fighter even offline on GitHub Pages!
+    // On-device 3D Character Cutout Extractor: creates a vibrant 3D-sculpted character crest when running offline on GitHub Pages without a Gemini API key
     function extractArtworkWindowFallback(dataUrl) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          // Crop character artwork window in the upper-middle of the card
-          const sx = Math.round(img.width * 0.14);
-          const sy = Math.round(img.height * 0.15);
-          const sw = Math.round(img.width * 0.72);
-          const sh = Math.round(img.height * 0.42);
-
-          canvas.width = 240;
-          canvas.height = 240;
+          canvas.width = 260;
+          canvas.height = 280;
           const ctx = canvas.getContext('2d');
-          ctx.filter = 'contrast(1.18) saturate(1.32)';
-          ctx.drawImage(img, sx, sy, sw, sh, 10, 10, 220, 220);
 
-          // Sample outer edge pixels of the illustration to key out background into a floating 3D figure
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const d = imgData.data;
-          const edgeR = d[(15 * canvas.width + 15) * 4];
-          const edgeG = d[(15 * canvas.width + 15) * 4 + 1];
-          const edgeB = d[(15 * canvas.width + 15) * 4 + 2];
+          // Crop the character artwork window from the center-top of the card
+          const sx = Math.round(img.width * 0.14);
+          const sy = Math.round(img.height * 0.16);
+          const sw = Math.round(img.width * 0.72);
+          const sh = Math.round(img.height * 0.44);
 
-          for (let y = 0; y < canvas.height; y++) {
-            for (let x = 0; x < canvas.width; x++) {
-              const idx = (y * canvas.width + x) * 4;
-              const dx = (x - 120) / 110;
-              const dy = (y - 120) / 110;
-              const radialDist = Math.sqrt(dx * dx + dy * dy);
-              const colorDist = Math.sqrt((d[idx] - edgeR) ** 2 + (d[idx + 1] - edgeG) ** 2 + (d[idx + 2] - edgeB) ** 2);
+          // Draw a 3D extruded metallic shield/medallion base so the character pops off the floor in 3D
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(22, 26, 216, 232, 36);
+          ctx.fillStyle = '#0f172a';
+          ctx.fill();
+          ctx.lineWidth = 10;
+          ctx.strokeStyle = '#f59e0b';
+          ctx.stroke();
 
-              if (radialDist > 0.96 || (radialDist > 0.65 && colorDist < 52)) {
-                d[idx + 3] = 0;
-              }
-            }
-          }
-          ctx.putImageData(imgData, 0, 0);
+          // Clip inner 3D character window and draw boosted vivid artwork
+          ctx.beginPath();
+          ctx.roundRect(28, 32, 204, 220, 30);
+          ctx.clip();
+          ctx.filter = 'contrast(1.22) saturate(1.38) brightness(1.06)';
+          ctx.drawImage(img, sx, sy, sw, sh, 24, 28, 212, 228);
 
-          // Add 3D specular highlight & rim glow around the character
-          ctx.globalCompositeOperation = 'source-atop';
-          const grad = ctx.createLinearGradient(0, 0, 240, 240);
-          grad.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
-          grad.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
-          grad.addColorStop(1, 'rgba(15, 23, 42, 0.35)');
-          ctx.fillStyle = grad;
-          ctx.fillRect(0, 0, 240, 240);
+          // 3D top-left studio rim light & bottom depth shadow
+          ctx.filter = 'none';
+          const lighting = ctx.createLinearGradient(28, 32, 232, 252);
+          lighting.addColorStop(0, 'rgba(255, 255, 255, 0.36)');
+          lighting.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
+          lighting.addColorStop(1, 'rgba(2, 6, 23, 0.45)');
+          ctx.fillStyle = lighting;
+          ctx.fillRect(28, 32, 204, 220);
+          ctx.restore();
+
+          // Glowing 3D top crown & inner specular border
+          ctx.beginPath();
+          ctx.roundRect(24, 28, 212, 228, 34);
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#fef08a';
+          ctx.stroke();
 
           resolve(canvas.toDataURL('image/png'));
         };
@@ -1884,6 +1945,14 @@
       el.cardFileInput.value = '';
       el.scanAiStatus.classList.add('hidden');
       el.btnCaptureCard.disabled = false;
+
+      // Show helpful AI Key banner when running outside Gemini Canvas without a key
+      const isPublicHost = !window.location.hostname.includes('googleusercontent') && !window.location.hostname.includes('usercontent');
+      if (isPublicHost && !getActiveGeminiApiKey()) {
+        el.githubAiTipBanner.classList.remove('hidden');
+      } else {
+        el.githubAiTipBanner.classList.add('hidden');
+      }
 
       el.capturedCardPreview.classList.add('hidden');
       el.cameraVideo.classList.add('hidden');
@@ -2610,6 +2679,12 @@
     el.btnCloseScanner.addEventListener('click', () => {
       sfx.click();
       closeCardScanner();
+    });
+
+    el.btnOpenKeyFromScanner.addEventListener('click', () => {
+      sfx.click();
+      el.customApiKeyInput.value = getActiveGeminiApiKey();
+      el.apiKeyModal.classList.remove('hidden');
     });
 
     el.btnCaptureCard.addEventListener('click', confirmCardScanAndSummon);
