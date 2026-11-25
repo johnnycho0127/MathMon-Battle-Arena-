@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+  <!-- On-device OCR engine so GitHub Pages reads card Name & HP without needing any server! -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     :root {
       --font-display: 'Fredoka', sans-serif;
@@ -370,6 +372,9 @@
     <div class="flex items-center gap-2">
       <button id="btnRules" class="btn-rpg px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs sm:text-sm font-semibold border border-slate-500">
         📖 Rules
+      </button>
+      <button id="btnApiKey" class="btn-rpg px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs sm:text-sm font-semibold border border-amber-400/50" title="Optional Gemini API Key for GitHub Hosting">
+        🔑 AI Key
       </button>
       <button id="btnSound" class="btn-rpg px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold border border-indigo-400" title="Toggle Music & Sound Effects">
         🔊 Music & SFX: ON
@@ -871,6 +876,29 @@
     </div>
   </div>
 
+  <!-- ==================== OPTIONAL API KEY MODAL (FOR GITHUB HOSTING) ==================== -->
+  <div id="apiKeyModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-amber-400 rounded-3xl max-w-md w-full p-5 shadow-2xl flex flex-col gap-3.5">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-extrabold text-amber-300">🔑 AI Card Vision Setup (GitHub Pages)</h3>
+        <button id="btnCloseApiKey" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+      </div>
+      <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+        On GitHub Pages, your phone already reads cards automatically using built-in on-device OCR & live art cutout! If you also want <strong class="text-white">Gemini Cloud AI</strong> to generate custom transparent character sprites on your public site, paste a free Gemini API key below (saved safely on your phone):
+      </p>
+      <input id="customApiKeyInput" type="password" placeholder="Paste Gemini API Key (optional)..."
+        class="w-full bg-slate-950 border-2 border-slate-600 focus:border-amber-400 rounded-xl px-3 py-2 text-sm text-white outline-none" />
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btnSaveApiKey" class="btn-rpg py-2.5 px-3 rounded-xl bg-emerald-400 text-slate-950 font-extrabold text-sm">
+          💾 Save Key
+        </button>
+        <button id="btnClearApiKey" class="btn-rpg py-2.5 px-3 rounded-xl bg-slate-700 text-white font-bold text-sm">
+          Clear Key
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     /**
      * ============================================================
@@ -878,7 +906,7 @@
      * ============================================================
      */
 
-    // --- 1. WEB AUDIO API RETRO SYNTHESIZER (No external audio files needed) ---
+    // --- 1. WEB AUDIO API RETRO SYNTHESIZER (Mobile-Unlocked + No External Files) ---
     class SoundFX {
       constructor() {
         this.enabled = true;
@@ -894,17 +922,29 @@
           if (AudioCtx) this.ctx = new AudioCtx();
         }
         if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx.resume();
+          this.ctx.resume().catch(() => {});
+        }
+      }
+
+      // Mobile browsers require unlocking AudioContext on the very first touch/click
+      unlockMobileAudio() {
+        this.init();
+        if (this.ctx && this.ctx.state === 'running') {
+          const buffer = this.ctx.createBuffer(1, 1, 22050);
+          const source = this.ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(this.ctx.destination);
+          source.start(0);
         }
       }
 
       startBattleMusic() {
         this.isBattleMusicActive = true;
         if (!this.enabled) return;
-        this.init();
+        this.unlockMobileAudio();
         if (this.bgmTimer) return;
 
-        // Upbeat Street-Fighter / RPG arcade battle melody & bassline (140 BPM sixteenth/eighth loop)
+        // Upbeat Street-Fighter / RPG arcade battle melody & bassline
         const leadNotes = [
           329.63, 0, 329.63, 392.00, 440.00, 0, 493.88, 392.00,
           329.63, 0, 293.66, 329.63, 392.00, 0, 329.63, 246.94,
@@ -928,10 +968,10 @@
           const bass = bassNotes[idx];
 
           if (lead > 0) {
-            this.playTone(lead, 'square', 0.14, 0.045, 0);
+            this.playTone(lead, 'square', 0.14, 0.06, 0);
           }
           if (bass > 0) {
-            this.playTone(bass, 'triangle', 0.16, 0.065, 0);
+            this.playTone(bass, 'triangle', 0.16, 0.085, 0);
           }
           this.bgmStep += 1;
         }, 185);
@@ -1172,6 +1212,12 @@
       btnHome: document.getElementById('btnHome'),
       btnSound: document.getElementById('btnSound'),
       btnRules: document.getElementById('btnRules'),
+      btnApiKey: document.getElementById('btnApiKey'),
+      apiKeyModal: document.getElementById('apiKeyModal'),
+      btnCloseApiKey: document.getElementById('btnCloseApiKey'),
+      customApiKeyInput: document.getElementById('customApiKeyInput'),
+      btnSaveApiKey: document.getElementById('btnSaveApiKey'),
+      btnClearApiKey: document.getElementById('btnClearApiKey'),
       rulesModal: document.getElementById('rulesModal'),
       btnCloseRules: document.getElementById('btnCloseRules'),
       btnGotItRules: document.getElementById('btnGotItRules'),
@@ -1362,14 +1408,229 @@
     }
 
     // Exponential backoff fetch helper for Gemini API calls
-    async function fetchWithRetry(url, options, maxRetries = 3) {
-      let delay = 1000;
+    function getActiveGeminiApiKey() {
+      try {
+        return localStorage.getItem('mathmon_gemini_api_key') || "";
+      } catch (e) {
+        return "";
+      }
+    }
+
+    async function fetchWithRetry(url, options, maxRetries = 2) {
+      let delay = 800;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         const response = await fetch(url, options);
         if (response.ok) return response;
         if (attempt === maxRetries) return response;
         await new Promise((resolve) => setTimeout(resolve, delay));
         delay *= 2;
+      }
+    }
+
+    // On-device fallback OCR using Tesseract.js so GitHub Pages reads real card Name & HP offline!
+    async function recognizeCardOfflineOCR(dataUrl) {
+      try {
+        if (!window.Tesseract) return null;
+        const result = await window.Tesseract.recognize(dataUrl, 'eng');
+        const rawText = result?.data?.text || '';
+        const lines = rawText
+          .split('\n')
+          .map((l) => l.replace(/[^a-zA-Z0-9\s-]/g, '').trim())
+          .filter((l) => l.length >= 2);
+
+        // Look for HP pattern like "HP 60", "60 HP", "120HP"
+        let detectedHp = null;
+        const hpMatch = rawText.match(/(?:HP\s*([1-9][0-9]{1,2})|([1-9][0-9]{1,2})\s*HP)/i);
+        if (hpMatch) {
+          detectedHp = parseInt(hpMatch[1] || hpMatch[2], 10);
+        }
+
+        // Extract top card title line (ignoring Basic / Stage / HP header noise)
+        let detectedName = null;
+        for (const line of lines.slice(0, 5)) {
+          const cleanedName = line
+            .replace(/\b(BASIC|STAGE\s*1|STAGE\s*2|VMAX|VSTAR|GX|EX|HP|NO|LV)\b/gi, '')
+            .replace(/[0-9]+/g, '')
+            .trim();
+          if (cleanedName.length >= 3 && cleanedName.length <= 18) {
+            detectedName = cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1);
+            break;
+          }
+        }
+
+        // Detect elemental keyword if visible on card
+        let detectedElement = null;
+        if (/fire|flame|ember|blaze|char/i.test(rawText)) detectedElement = 'Fire';
+        else if (/water|aqua|hydro|bubble|squirt/i.test(rawText)) detectedElement = 'Water';
+        else if (/grass|leaf|vine|seed|bulba/i.test(rawText)) detectedElement = 'Grass';
+        else if (/psychic|shadow|ghost|mind|mew/i.test(rawText)) detectedElement = 'Psychic';
+        else if (/fighting|rock|earth|ground|stone/i.test(rawText)) detectedElement = 'Earth';
+        else if (/lightning|electric|spark|volt|pika/i.test(rawText)) detectedElement = 'Electric';
+
+        if (!detectedName && !detectedHp) return null;
+        return {
+          characterName: detectedName || 'Card Fighter',
+          hp: detectedHp || 60,
+          element: detectedElement || 'Electric'
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Recognize real Character Name, real HP, and Element (Tries Gemini Vision first, falls back to On-Device OCR on GitHub Pages!)
+    async function recognizeCardDetailsWithAI(dataUrl) {
+      try {
+        const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+        if (!match) return await recognizeCardOfflineOCR(dataUrl);
+        const mimeType = match[1];
+        const base64Data = match[2];
+
+        const apiKey = getActiveGeminiApiKey();
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        const payload = {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: "Inspect this trading card / Pokémon card image. Extract the exact character/creature name printed on the card, the exact numeric HP value printed on the card (e.g., 60, 70, 120, 200), and its elemental type (Electric, Fire, Water, Grass, Psychic, or Earth). If a field is unclear, make your best reading."
+                },
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                characterName: { type: "STRING" },
+                hp: { type: "INTEGER" },
+                element: {
+                  type: "STRING",
+                  enum: ["Electric", "Fire", "Water", "Grass", "Psychic", "Earth"]
+                }
+              },
+              required: ["characterName", "hp", "element"]
+            }
+          }
+        };
+
+        const resp = await fetchWithRetry(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp || !resp.ok) {
+          return await recognizeCardOfflineOCR(dataUrl);
+        }
+        const json = await resp.json();
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) return await recognizeCardOfflineOCR(dataUrl);
+        return JSON.parse(text);
+      } catch (err) {
+        return await recognizeCardOfflineOCR(dataUrl);
+      }
+    }
+
+    // On-device fallback artwork extractor: crops the character illustration window from the card & keys out background so it animates live on GitHub Pages!
+    function extractArtworkWindowFallback(dataUrl) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          // Trading card artwork sits in the upper-middle illustration window
+          const sx = Math.round(img.width * 0.12);
+          const sy = Math.round(img.height * 0.14);
+          const sw = Math.round(img.width * 0.76);
+          const sh = Math.round(img.height * 0.44);
+
+          canvas.width = 240;
+          canvas.height = 220;
+          const ctx = canvas.getContext('2d');
+
+          // Draw character portrait inside a glowing energy-aura medallion
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(12, 10, 216, 198, 36);
+          ctx.clip();
+          ctx.drawImage(img, sx, sy, sw, sh, 12, 10, 216, 198);
+          ctx.restore();
+
+          // Add glowing arcade fighter rim
+          ctx.lineWidth = 6;
+          ctx.strokeStyle = '#facc15';
+          ctx.beginPath();
+          ctx.roundRect(12, 10, 216, 198, 36);
+          ctx.stroke();
+
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+      });
+    }
+
+    // Extract a live full-body fighting character cutout from the scanned card (Gemini Image first, fallback to smart artwork crop on GitHub Pages)
+    async function extractLiveCharacterCutout(dataUrl, charName) {
+      try {
+        const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+        if (!match) return await extractArtworkWindowFallback(dataUrl);
+        const mimeType = match[1];
+        const base64Data = match[2];
+
+        const apiKey = getActiveGeminiApiKey();
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
+
+        const payload = {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `Extract the main creature/character (${charName}) from this trading card as a dynamic full-body arcade fighting-game character in an active battle pose facing right, isolated cleanly on a pure solid magenta (#FF00FF) background with NO card borders, NO text, and NO UI boxes.`
+                },
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseModalities: ['IMAGE']
+          }
+        };
+
+        const resp = await fetchWithRetry(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp || !resp.ok) {
+          return await extractArtworkWindowFallback(dataUrl);
+        }
+        const result = await resp.json();
+        const part = result?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+        if (!part || !part.inlineData?.data) {
+          return await extractArtworkWindowFallback(dataUrl);
+        }
+
+        const rawCutoutUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+        return await keyOutSolidBackground(rawCutoutUrl);
+      } catch (err) {
+        return await extractArtworkWindowFallback(dataUrl);
       }
     }
 
@@ -2508,6 +2769,45 @@
     el.btnGotItRules.addEventListener('click', () => {
       sfx.click();
       el.rulesModal.classList.add('hidden');
+    });
+
+    // Optional API Key Modal Listeners (for GitHub Pages cloud AI enhancement)
+    el.btnApiKey.addEventListener('click', () => {
+      sfx.click();
+      el.customApiKeyInput.value = getActiveGeminiApiKey();
+      el.apiKeyModal.classList.remove('hidden');
+    });
+
+    el.btnCloseApiKey.addEventListener('click', () => {
+      sfx.click();
+      el.apiKeyModal.classList.add('hidden');
+    });
+
+    el.btnSaveApiKey.addEventListener('click', () => {
+      sfx.click();
+      const val = el.customApiKeyInput.value.trim();
+      try {
+        if (val) localStorage.setItem('mathmon_gemini_api_key', val);
+        else localStorage.removeItem('mathmon_gemini_api_key');
+      } catch (e) {}
+      el.apiKeyModal.classList.add('hidden');
+    });
+
+    el.btnClearApiKey.addEventListener('click', () => {
+      sfx.click();
+      el.customApiKeyInput.value = '';
+      try { localStorage.removeItem('mathmon_gemini_api_key'); } catch (e) {}
+      el.apiKeyModal.classList.add('hidden');
+    });
+
+    // Unlock Web Audio on first phone touch/click anywhere so music & SFX always play on mobile
+    ['touchstart', 'pointerdown', 'click'].forEach((evtName) => {
+      window.addEventListener(evtName, () => {
+        sfx.unlockMobileAudio();
+        if (sfx.enabled && sfx.isBattleMusicActive && !sfx.bgmTimer) {
+          sfx.startBattleMusic();
+        }
+      }, { passive: true });
     });
 
     window.addEventListener('resize', resizeFxCanvas);
