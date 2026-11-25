@@ -1,0 +1,2522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MathMon Battle Arena</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-display: 'Fredoka', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    input {
+      user-select: text;
+    }
+
+    body {
+      font-family: var(--font-display);
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+      color: #f8fafc;
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Custom Animations */
+    @keyframes floatIdle {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-8px) scale(1.02); }
+    }
+
+    @keyframes floatIdleAlt {
+      0%, 100% { transform: translateY(-4px) scale(1); }
+      50% { transform: translateY(4px) scale(0.98); }
+    }
+
+    /* Street Fighter Live Character Stance Idle (Breathing + Fighting Bounce) */
+    @keyframes sfStanceLeft {
+      0%, 100% { transform: translateY(0px) scaleY(1) scaleX(1) skewX(0deg); }
+      50% { transform: translateY(-5px) scaleY(0.95) scaleX(1.04) skewX(-2deg); }
+    }
+
+    @keyframes sfStanceRight {
+      0%, 100% { transform: translateY(-3px) scaleY(0.96) scaleX(1.03) skewX(2deg); }
+      50% { transform: translateY(0px) scaleY(1) scaleX(1) skewX(0deg); }
+    }
+
+    /* Street Fighter Dash-In Strike & Special Move Animations */
+    @keyframes sfDashAttackRight {
+      0% { transform: translateX(0) scale(1) rotate(0deg); }
+      20% { transform: translateX(-22px) scale(0.92) rotate(-6deg); }
+      48% { transform: translateX(155px) translateY(-14px) scale(1.22) rotate(12deg); }
+      68% { transform: translateX(135px) translateY(-6px) scale(1.15) rotate(6deg); }
+      100% { transform: translateX(0) scale(1) rotate(0deg); }
+    }
+
+    @keyframes sfDashAttackLeft {
+      0% { transform: translateX(0) scale(1) rotate(0deg); }
+      20% { transform: translateX(22px) scale(0.92) rotate(6deg); }
+      48% { transform: translateX(-155px) translateY(-14px) scale(1.22) rotate(-12deg); }
+      68% { transform: translateX(-135px) translateY(-6px) scale(1.15) rotate(-6deg); }
+      100% { transform: translateX(0) scale(1) rotate(0deg); }
+    }
+
+    @keyframes sfKnockbackLeft {
+      0%, 100% { transform: translateX(0) rotate(0deg); filter: brightness(1); }
+      15% { transform: translateX(-34px) translateY(-10px) rotate(-16deg); filter: brightness(2.8) saturate(0) invert(1); }
+      35% { transform: translateX(-24px) rotate(-10deg); filter: brightness(0.5); }
+      55% { transform: translateX(-14px) rotate(-6deg); filter: brightness(2); }
+      80% { transform: translateX(6px) rotate(3deg); filter: brightness(1); }
+    }
+
+    @keyframes sfKnockbackRight {
+      0%, 100% { transform: translateX(0) rotate(0deg); filter: brightness(1); }
+      15% { transform: translateX(34px) translateY(-10px) rotate(16deg); filter: brightness(2.8) saturate(0) invert(1); }
+      35% { transform: translateX(24px) rotate(10deg); filter: brightness(0.5); }
+      55% { transform: translateX(14px) rotate(6deg); filter: brightness(2); }
+      80% { transform: translateX(-6px) rotate(-3deg); filter: brightness(1); }
+    }
+
+    @keyframes sfKoFallLeft {
+      0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+      35% { transform: translate(-35px, -28px) rotate(-45deg); opacity: 1; }
+      100% { transform: translate(-65px, 42px) rotate(-90deg) scale(0.9); opacity: 0.35; }
+    }
+
+    @keyframes sfKoFallRight {
+      0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+      35% { transform: translate(35px, -28px) rotate(45deg); opacity: 1; }
+      100% { transform: translate(65px, 42px) rotate(90deg) scale(0.9); opacity: 0.35; }
+    }
+
+    @keyframes holoShimmer {
+      0% { background-position: -150% 0; }
+      100% { background-position: 150% 0; }
+    }
+
+    @keyframes lungeRight {
+      0% { transform: translate(0, 0) scale(1); }
+      35% { transform: translate(-18px, 6px) scale(0.95); }
+      65% { transform: translate(65px, -25px) scale(1.15); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+
+    @keyframes lungeLeft {
+      0% { transform: translate(0, 0) scale(1); }
+      35% { transform: translate(18px, -6px) scale(0.95); }
+      65% { transform: translate(-65px, 25px) scale(1.15); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+
+    @keyframes hitFlash {
+      0%, 100% { filter: brightness(1) drop-shadow(0 8px 12px rgba(0,0,0,0.35)); transform: translateX(0); }
+      15% { filter: brightness(3) saturate(0) invert(1); transform: translateX(-14px); }
+      30% { filter: brightness(0.4); transform: translateX(14px); }
+      45% { filter: brightness(2.5); transform: translateX(-10px); }
+      60% { filter: brightness(1); transform: translateX(10px); }
+      75% { transform: translateX(-5px); }
+    }
+
+    @keyframes dodgeSide {
+      0%, 100% { transform: translateX(0); }
+      30% { transform: translateX(35px) rotate(8deg); }
+      70% { transform: translateX(35px) rotate(8deg); }
+    }
+
+    @keyframes faintDrop {
+      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+      30% { transform: translateY(-12px) rotate(-6deg); opacity: 1; }
+      100% { transform: translateY(70px) rotate(18deg) scale(0.85); opacity: 0; }
+    }
+
+    @keyframes arenaShake {
+      0%, 100% { transform: translate(0, 0); }
+      15% { transform: translate(-8px, 6px); }
+      30% { transform: translate(8px, -6px); }
+      45% { transform: translate(-6px, -4px); }
+      60% { transform: translate(6px, 5px); }
+      75% { transform: translate(-4px, 3px); }
+    }
+
+    @keyframes popDamage {
+      0% { transform: translate(-50%, 10px) scale(0.4); opacity: 0; }
+      20% { transform: translate(-50%, -18px) scale(1.25); opacity: 1; }
+      75% { transform: translate(-50%, -42px) scale(1); opacity: 1; }
+      100% { transform: translate(-50%, -62px) scale(0.9); opacity: 0; }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.5); }
+      50% { box-shadow: 0 0 0 8px rgba(250, 204, 21, 0); }
+    }
+
+    @keyframes scanLaser {
+      0% { top: 4%; opacity: 0.95; }
+      50% { top: 92%; opacity: 1; }
+      100% { top: 4%; opacity: 0.95; }
+    }
+
+    @keyframes cardMaterialize {
+      0% { transform: scale(0.35) rotateY(180deg); filter: brightness(3) blur(6px); opacity: 0; }
+      55% { transform: scale(1.12) rotateY(0deg); filter: brightness(1.8) blur(0px); opacity: 1; }
+      100% { transform: scale(1) rotateY(0deg); filter: brightness(1) blur(0px); opacity: 1; }
+    }
+
+    @keyframes urgentPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+
+    .anim-idle-1 { animation: floatIdle 2.6s ease-in-out infinite; }
+    .anim-idle-2 { animation: floatIdleAlt 2.9s ease-in-out infinite; }
+    .anim-sf-idle-1 { animation: sfStanceLeft 0.72s ease-in-out infinite; transform-origin: bottom center; }
+    .anim-sf-idle-2 { animation: sfStanceRight 0.72s ease-in-out infinite; transform-origin: bottom center; }
+    .anim-sf-attack-1 { animation: sfDashAttackRight 0.65s cubic-bezier(0.18, 0.89, 0.32, 1.28); transform-origin: bottom center; }
+    .anim-sf-attack-2 { animation: sfDashAttackLeft 0.65s cubic-bezier(0.18, 0.89, 0.32, 1.28); transform-origin: bottom center; }
+    .anim-sf-hit-1 { animation: sfKnockbackLeft 0.65s ease-out; transform-origin: bottom center; }
+    .anim-sf-hit-2 { animation: sfKnockbackRight 0.65s ease-out; transform-origin: bottom center; }
+    .anim-sf-ko-1 { animation: sfKoFallLeft 0.95s forwards ease-in; transform-origin: bottom center; }
+    .anim-sf-ko-2 { animation: sfKoFallRight 0.95s forwards ease-in; transform-origin: bottom center; }
+    .anim-lunge-right { animation: lungeRight 0.55s cubic-bezier(0.22, 1, 0.36, 1); }
+    .anim-lunge-left { animation: lungeLeft 0.55s cubic-bezier(0.22, 1, 0.36, 1); }
+    .anim-hit { animation: hitFlash 0.65s ease-in-out; }
+    .anim-dodge { animation: dodgeSide 0.75s ease-in-out; }
+    .anim-faint { animation: faintDrop 0.9s forwards ease-in; }
+    .anim-shake { animation: arenaShake 0.45s ease-in-out; }
+    .anim-damage-pop { animation: popDamage 1.35s forwards cubic-bezier(0.16, 1, 0.3, 1); }
+    .anim-turn-glow { animation: pulseGlow 1.8s infinite; }
+    .anim-scan-beam { animation: scanLaser 1.6s ease-in-out infinite; }
+    .anim-materialize { animation: cardMaterialize 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+    .anim-urgent { animation: urgentPulse 0.55s ease-in-out infinite; }
+
+    /* Retro RPG Tactile Buttons */
+    .btn-rpg {
+      transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+    }
+    .btn-rpg:hover:not(:disabled) {
+      transform: translateY(-2px);
+      filter: brightness(1.06);
+      box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+    }
+    .btn-rpg:active:not(:disabled) {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+    }
+    .btn-rpg:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Battle Arena Grass & Sky Scenic Backdrop */
+    .arena-stage {
+      background:
+        radial-gradient(circle at 50% 25%, rgba(251, 191, 36, 0.45) 0%, rgba(251, 191, 36, 0) 42%),
+        linear-gradient(180deg, #1e1b4b 0%, #312e81 36%, #be123c 64%, #1e293b 64%, #0f172a 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Street Fighter Arcade Floor Grid Perspective */
+    .sf-floor {
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 2px, transparent 2px, transparent 48px),
+        linear-gradient(180deg, #334155 0%, #1e293b 45%, #0f172a 100%);
+      border-top: 4px solid #f59e0b;
+      box-shadow: inset 0 12px 24px rgba(0, 0, 0, 0.55);
+    }
+
+    /* Living Scanned Card Fighter Frame */
+    .live-card-fighter {
+      border-radius: 16px;
+      border: 3px solid #facc15;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 0 18px rgba(250, 204, 21, 0.45);
+      overflow: hidden;
+      position: relative;
+      background: #0f172a;
+    }
+
+    .live-card-fighter::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.32) 50%, transparent 70%);
+      background-size: 200% 100%;
+      animation: holoShimmer 2.8s infinite linear;
+      pointer-events: none;
+    }
+
+    /* Live Cutout Character Fighting Stance & Combo Strike Animations */
+    @keyframes sfMartialGuardLeft {
+      0%, 100% { transform: translateY(0px) rotate(-2deg) scaleY(1) scaleX(1); }
+      25% { transform: translateY(-7px) rotate(3deg) scaleY(0.96) scaleX(1.04); }
+      50% { transform: translateY(-2px) rotate(-4deg) scaleY(1.02) scaleX(0.98); }
+      75% { transform: translateY(-8px) rotate(2deg) scaleY(0.95) scaleX(1.05); }
+    }
+
+    @keyframes sfMartialGuardRight {
+      0%, 100% { transform: translateY(-4px) rotate(2deg) scaleY(0.96) scaleX(1.04); }
+      25% { transform: translateY(0px) rotate(-3deg) scaleY(1) scaleX(1); }
+      50% { transform: translateY(-7px) rotate(4deg) scaleY(0.95) scaleX(1.05); }
+      75% { transform: translateY(-1px) rotate(-2deg) scaleY(1.02) scaleX(0.98); }
+    }
+
+    @keyframes sfComboPunchRight {
+      0% { transform: translateX(0) translateY(0) scale(1) rotate(0deg); }
+      18% { transform: translateX(-28px) translateY(4px) scale(0.9) rotate(-12deg); }
+      42% { transform: translateX(165px) translateY(-18px) scale(1.26) rotate(18deg); }
+      58% { transform: translateX(130px) translateY(6px) scale(1.15) rotate(-8deg); }
+      76% { transform: translateX(175px) translateY(-22px) scale(1.3) rotate(22deg); }
+      100% { transform: translateX(0) translateY(0) scale(1) rotate(0deg); }
+    }
+
+    @keyframes sfComboPunchLeft {
+      0% { transform: translateX(0) translateY(0) scale(1) rotate(0deg); }
+      18% { transform: translateX(28px) translateY(4px) scale(0.9) rotate(12deg); }
+      42% { transform: translateX(-165px) translateY(-18px) scale(1.26) rotate(-18deg); }
+      58% { transform: translateX(-130px) translateY(6px) scale(1.15) rotate(8deg); }
+      76% { transform: translateX(-175px) translateY(-22px) scale(1.3) rotate(-22deg); }
+      100% { transform: translateX(0) translateY(0) scale(1) rotate(0deg); }
+    }
+
+    .anim-sf-idle-1 { animation: sfMartialGuardLeft 0.68s ease-in-out infinite; transform-origin: bottom center; }
+    .anim-sf-idle-2 { animation: sfMartialGuardRight 0.68s ease-in-out infinite; transform-origin: bottom center; }
+    .anim-sf-attack-1 { animation: sfComboPunchRight 0.72s cubic-bezier(0.18, 0.89, 0.32, 1.28); transform-origin: bottom center; }
+    .anim-sf-attack-2 { animation: sfComboPunchLeft 0.72s cubic-bezier(0.18, 0.89, 0.32, 1.28); transform-origin: bottom center; }
+
+    .live-character-cutout {
+      filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 10px rgba(250, 204, 21, 0.45));
+      transition: transform 0.15s ease;
+    }
+
+    .arena-platform {
+      background: radial-gradient(ellipse at center, rgba(250, 204, 21, 0.35) 0%, rgba(15, 23, 42, 0.85) 75%);
+      border: 2px solid rgba(250, 204, 21, 0.4);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.7);
+    }
+
+    /* HP HUD Card above Monster */
+    .hp-hud {
+      background: rgba(255, 255, 255, 0.96);
+      border: 3px solid #1e293b;
+      box-shadow: 0 5px 0 #1e293b;
+      color: #0f172a;
+    }
+
+    .hp-bar-fill {
+      transition: width 0.65s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.4s ease;
+    }
+
+    /* Active Turn vs Waiting Player Visual Clarity */
+    .hud-active-p1 {
+      background: linear-gradient(135deg, rgba(14, 116, 144, 0.96), rgba(3, 105, 161, 0.96)) !important;
+      border-color: #facc15 !important;
+      box-shadow: 0 0 22px rgba(250, 204, 21, 0.75) !important;
+      transform: scale(1.03);
+      opacity: 1 !important;
+    }
+
+    .hud-active-p2 {
+      background: linear-gradient(135deg, rgba(159, 18, 57, 0.96), rgba(190, 18, 60, 0.96)) !important;
+      border-color: #facc15 !important;
+      box-shadow: 0 0 22px rgba(250, 204, 21, 0.75) !important;
+      transform: scale(1.03);
+      opacity: 1 !important;
+    }
+
+    .hud-inactive {
+      opacity: 0.48;
+      filter: grayscale(0.45);
+      transform: scale(0.97);
+    }
+
+    /* Projectile Canvas Layer */
+    #fxCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 25;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <!-- Top Header Bar -->
+  <header class="w-full bg-slate-900/90 border-b-2 border-slate-700/80 px-3 sm:px-6 py-2.5 flex items-center justify-between z-30">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-red-500 flex items-center justify-center border-2 border-white shadow-md">
+        <span class="text-white font-extrabold text-lg">⚡</span>
+      </div>
+      <div>
+        <h1 class="text-lg sm:text-xl font-bold tracking-wide text-white leading-tight">
+          MathMon <span class="text-amber-400">Battle Arena</span>
+        </h1>
+        <p class="text-[11px] text-slate-400 hidden sm:block">Solve the math question to unleash your attack!</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="btnRules" class="btn-rpg px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs sm:text-sm font-semibold border border-slate-500">
+        📖 Rules
+      </button>
+      <button id="btnSound" class="btn-rpg px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold border border-indigo-400" title="Toggle Music & Sound Effects">
+        🔊 Music & SFX: ON
+      </button>
+      <button id="btnHome" class="hidden btn-rpg px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold border border-rose-400">
+        📷 Scan New Cards
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== SCREEN 1: CARD SCANNER & SUMMON SETUP ==================== -->
+  <main id="setupScreen" class="flex-1 w-full max-w-5xl mx-auto p-3 sm:p-6 flex flex-col justify-center gap-4 sm:gap-5">
+    
+    <!-- Game Mode, First Turn & Timer Rules Bar -->
+    <div class="bg-slate-800/90 border-2 border-slate-700 rounded-2xl p-3.5 sm:p-4 shadow-xl">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        
+        <!-- Mode Toggle -->
+        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700">
+          <label class="block text-xs uppercase tracking-wider text-amber-400 font-bold mb-2">1. Who Are You Playing?</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="mode2P" class="btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 text-slate-950 border-2 border-emerald-300">
+              👥 You vs. Friend
+            </button>
+            <button id="modeCPU" class="btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-700 text-slate-200 border-2 border-slate-600">
+              🤖 vs. CPU Bot
+            </button>
+          </div>
+        </div>
+
+        <!-- Who Goes First -->
+        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700">
+          <label class="block text-xs uppercase tracking-wider text-sky-400 font-bold mb-2">2. Who Asks First?</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="firstP1" class="btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-sky-500 text-slate-950 border-2 border-sky-300">
+              You Ask First
+            </button>
+            <button id="firstP2" class="btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-700 text-slate-200 border-2 border-slate-600">
+              <span id="firstP2Label">Friend</span> Asks
+            </button>
+          </div>
+        </div>
+
+        <!-- Damage Cap Rule -->
+        <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700">
+          <label class="block text-xs uppercase tracking-wider text-purple-400 font-bold mb-2">3. Answer Limit (1:00 Timer)</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="capNone" class="btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-purple-500 text-white border-2 border-purple-300">
+              No Limit!
+            </button>
+            <button id="cap25" class="btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-700 text-slate-200 border-2 border-slate-600">
+              Max 25 (Fair)
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Player 1 & Player 2 Card Scanner Stations -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+      
+      <!-- PLAYER 1 (YOU) CARD SCANNER STATION -->
+      <div class="bg-slate-800/95 border-2 border-sky-500/70 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-1 rounded-lg bg-sky-500 text-slate-950 font-extrabold text-xs">YOUR CARD</span>
+            <input id="p1NameInput" type="text" value="You" maxlength="14"
+              class="bg-slate-900 border border-slate-600 focus:border-sky-400 outline-none rounded-lg px-2.5 py-1 text-sm font-bold text-white w-32" />
+          </div>
+          <!-- Card HP Selector (Default 60 like user example!) -->
+          <div class="flex items-center gap-1.5 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-700">
+            <span class="text-xs text-rose-400 font-bold">Card HP:</span>
+            <input id="p1HpInput" type="number" min="10" max="999" step="10" value="60"
+              class="w-16 bg-slate-800 border border-slate-600 focus:border-amber-400 rounded-lg px-1.5 py-0.5 text-center text-amber-300 font-extrabold text-sm outline-none" />
+          </div>
+        </div>
+
+        <!-- Summoned Card Display Stage -->
+        <div id="p1SummonDisplay" class="relative bg-gradient-to-br from-slate-900 via-sky-950/50 to-slate-900 border-2 border-sky-500/40 rounded-2xl p-3 flex items-center gap-3 min-h-[124px]">
+          <div id="p1ScannedThumbWrap" class="hidden relative w-20 h-24 rounded-xl overflow-hidden border-2 border-sky-400 shrink-0 shadow-lg bg-slate-950">
+            <img id="p1ScannedImg" src="" alt="Scanned Card" class="w-full h-full object-cover" />
+            <span class="absolute bottom-0 inset-x-0 bg-sky-500/90 text-slate-950 text-[9px] font-extrabold text-center py-0.5">SCANNED</span>
+          </div>
+          <div id="p1PreviewMonster" class="w-24 h-24 shrink-0 flex items-center justify-center anim-idle-1"></div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span id="p1CardStatusBadge" class="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-extrabold">READY TO SCAN</span>
+            </div>
+            <input id="p1MonsterNameInput" type="text" value="Sparkmouse" maxlength="16"
+              class="mt-1.5 w-full bg-slate-950/80 border border-slate-700 focus:border-sky-400 rounded-lg px-2 py-1 text-base font-extrabold text-white outline-none" />
+            <div class="flex items-center justify-between mt-1">
+              <span id="p1ElementLabel" class="text-xs font-bold text-sky-300">⚡ Electric Spirit</span>
+              <button type="button" data-cycle="1" class="cycle-spirit text-[11px] text-slate-400 hover:text-amber-300 underline font-semibold">
+                Switch Spirit ↻
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scan Physical Card Action Button -->
+        <button type="button" data-scan-player="1" class="open-scanner-btn btn-rpg w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 text-slate-950 font-extrabold text-sm sm:text-base border-2 border-sky-200 flex items-center justify-center gap-2">
+          📷 Scan Your Physical Card
+        </button>
+      </div>
+
+      <!-- PLAYER 2 (FRIEND) CARD SCANNER STATION -->
+      <div class="bg-slate-800/95 border-2 border-rose-500/70 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span id="p2Badge" class="px-2.5 py-1 rounded-lg bg-rose-500 text-white font-extrabold text-xs">FRIEND'S CARD</span>
+            <input id="p2NameInput" type="text" value="Friend" maxlength="14"
+              class="bg-slate-900 border border-slate-600 focus:border-rose-400 outline-none rounded-lg px-2.5 py-1 text-sm font-bold text-white w-32" />
+          </div>
+          <!-- Card HP Selector (Default 40 like user example!) -->
+          <div class="flex items-center gap-1.5 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-700">
+            <span class="text-xs text-rose-400 font-bold">Card HP:</span>
+            <input id="p2HpInput" type="number" min="10" max="999" step="10" value="40"
+              class="w-16 bg-slate-800 border border-slate-600 focus:border-amber-400 rounded-lg px-1.5 py-0.5 text-center text-amber-300 font-extrabold text-sm outline-none" />
+          </div>
+        </div>
+
+        <!-- Summoned Card Display Stage -->
+        <div id="p2SummonDisplay" class="relative bg-gradient-to-br from-slate-900 via-rose-950/50 to-slate-900 border-2 border-rose-500/40 rounded-2xl p-3 flex items-center gap-3 min-h-[124px]">
+          <div id="p2ScannedThumbWrap" class="hidden relative w-20 h-24 rounded-xl overflow-hidden border-2 border-rose-400 shrink-0 shadow-lg bg-slate-950">
+            <img id="p2ScannedImg" src="" alt="Scanned Card" class="w-full h-full object-cover" />
+            <span class="absolute bottom-0 inset-x-0 bg-rose-500/90 text-white text-[9px] font-extrabold text-center py-0.5">SCANNED</span>
+          </div>
+          <div id="p2PreviewMonster" class="w-24 h-24 shrink-0 flex items-center justify-center anim-idle-2"></div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span id="p2CardStatusBadge" class="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-extrabold">READY TO SCAN</span>
+            </div>
+            <input id="p2MonsterNameInput" type="text" value="Emberlizard" maxlength="16"
+              class="mt-1.5 w-full bg-slate-950/80 border border-slate-700 focus:border-rose-400 rounded-lg px-2 py-1 text-base font-extrabold text-white outline-none" />
+            <div class="flex items-center justify-between mt-1">
+              <span id="p2ElementLabel" class="text-xs font-bold text-rose-300">🔥 Fire Spirit</span>
+              <button type="button" data-cycle="2" class="cycle-spirit text-[11px] text-slate-400 hover:text-amber-300 underline font-semibold">
+                Switch Spirit ↻
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scan Physical Card Action Button -->
+        <button type="button" id="btnScanP2" data-scan-player="2" class="open-scanner-btn btn-rpg w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-orange-500 text-white font-extrabold text-sm sm:text-base border-2 border-rose-200 flex items-center justify-center gap-2">
+          📷 Scan Friend's Physical Card
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Start Battle CTA -->
+    <div class="flex flex-col items-center gap-2 pt-1">
+      <button id="btnStartBattle" class="btn-rpg w-full sm:w-auto px-10 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 text-slate-950 font-extrabold text-xl tracking-wide border-2 border-amber-200 shadow-2xl">
+        ⚔️ START 1-MINUTE MATH BATTLE!
+      </button>
+      <p class="text-xs text-slate-400 text-center">
+        Scan your cards with your phone camera (or upload a card photo), set HP (like <span class="text-amber-300 font-bold">60 HP vs 40 HP</span>), and battle with a <span class="text-rose-400 font-bold">1:00 timer</span>!
+      </p>
+    </div>
+
+  </main>
+
+  <!-- ==================== SCREEN 2: LIVE BATTLE ARENA ==================== -->
+  <section id="battleScreen" class="hidden flex-1 w-full max-w-5xl mx-auto p-2 sm:p-4 flex flex-col justify-between gap-2.5 sm:gap-3">
+    
+    <!-- Visual Street Fighter Battle Stage -->
+    <div id="arenaContainer" class="arena-stage rounded-3xl border-4 border-slate-800 shadow-2xl flex-1 min-h-[340px] sm:min-h-[400px] relative flex flex-col justify-between p-3 sm:p-5">
+      
+      <!-- Particle / Attack Projectile & Hit-Spark Canvas -->
+      <canvas id="fxCanvas"></canvas>
+
+      <!-- STREET FIGHTER TOP ARCADE HUD (P1 Bar | KO & Timer | P2 Bar) -->
+      <div class="z-20 flex flex-col gap-2">
+        <div class="grid grid-cols-11 items-center gap-1.5 sm:gap-3">
+          
+          <!-- PLAYER 1 ARCADE HP BAR (Left, drains right-to-left) -->
+          <div id="p1Hud" class="col-span-5 bg-slate-950/90 border-2 border-sky-400 rounded-xl p-2 shadow-lg transition-all duration-300">
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span id="p1TrainerTag" class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-sky-500 text-slate-950 shrink-0">P1</span>
+                <span id="p1MonName" class="font-extrabold text-xs sm:text-sm text-white truncate uppercase tracking-wide">Sparkmouse</span>
+              </div>
+              <span id="p1HpText" class="font-mono font-extrabold text-xs sm:text-sm text-amber-300 shrink-0">60/60</span>
+            </div>
+            <div class="w-full h-4 bg-slate-800 rounded-md overflow-hidden border border-slate-600 p-0.5 flex justify-end">
+              <div id="p1HpBar" class="hp-bar-fill h-full rounded-sm bg-emerald-500" style="width: 100%;"></div>
+            </div>
+            <div class="flex justify-between items-center mt-1">
+              <span id="p1TypeBadge" class="text-[10px] font-bold text-sky-300">⚡ Electric</span>
+              <span id="p1TurnRoleBadge" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 uppercase tracking-wider">WAITING</span>
+            </div>
+          </div>
+
+          <!-- CENTER KO MEDALLION & 1:00 TIMER -->
+          <div class="col-span-1 flex flex-col items-center justify-center">
+            <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-b from-amber-300 via-amber-500 to-red-600 border-2 border-white shadow-lg flex items-center justify-center font-extrabold text-slate-950 text-xs sm:text-sm tracking-tighter">
+              K.O.
+            </div>
+          </div>
+
+          <!-- PLAYER 2 ARCADE HP BAR (Right, drains left-to-right) -->
+          <div id="p2Hud" class="col-span-5 bg-slate-950/90 border-2 border-rose-500 rounded-xl p-2 shadow-lg transition-all duration-300">
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <span id="p2HpText" class="font-mono font-extrabold text-xs sm:text-sm text-amber-300 shrink-0">40/40</span>
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span id="p2MonName" class="font-extrabold text-xs sm:text-sm text-white truncate uppercase tracking-wide">Emberlizard</span>
+                <span id="p2TrainerTag" class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-rose-500 text-white shrink-0">P2</span>
+              </div>
+            </div>
+            <div class="w-full h-4 bg-slate-800 rounded-md overflow-hidden border border-slate-600 p-0.5 flex justify-start">
+              <div id="p2HpBar" class="hp-bar-fill h-full rounded-sm bg-emerald-500" style="width: 100%;"></div>
+            </div>
+            <div class="flex justify-between items-center mt-1">
+              <span id="p2TurnRoleBadge" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 uppercase tracking-wider">WAITING</span>
+              <span id="p2TypeBadge" class="text-[10px] font-bold text-rose-300">🔥 Fire</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Turn Status & 1:00 Countdown Pill -->
+        <div class="flex items-center justify-between gap-2">
+          <div id="turnBanner" class="px-3 py-1 rounded-full bg-slate-950/90 border border-amber-400 text-amber-300 text-xs font-bold shadow flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span id="turnBannerText">Round 1</span>
+          </div>
+
+          <!-- LIVE 1:00 COUNTDOWN BADGE -->
+          <div id="timerPill" class="hidden px-4 py-1 rounded-full bg-slate-950/95 border-2 border-emerald-400 text-emerald-300 font-mono font-extrabold text-sm sm:text-base shadow-xl flex items-center gap-1.5">
+            <span>⏱️</span>
+            <span id="timerText">1:00</span>
+          </div>
+
+          <div class="px-2.5 py-1 rounded-full bg-slate-950/80 text-slate-300 text-[11px] font-semibold border border-slate-700 hidden sm:block">
+            Limit: <span id="hudLimitLabel" class="text-amber-300 font-bold">No Limit</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STREET FIGHTER SIDE-BY-SIDE LIVE FIGHTING STAGE -->
+      <div class="relative flex-1 w-full flex items-end justify-between px-3 sm:px-14 pb-3 sm:pb-5 z-10">
+        
+        <!-- PLAYER 1 LIVE SCANNED CHARACTER (Left Side, Facing Right) -->
+        <div id="p1StageSide" class="relative flex flex-col items-center z-10 transition-all duration-300">
+          <!-- Active Turn Pointer Arrow above Fighter -->
+          <div id="p1StageMarker" class="hidden mb-1.5 px-3 py-0.5 rounded-full bg-amber-400 text-slate-950 font-extrabold text-[11px] sm:text-xs shadow-lg border-2 border-white animate-bounce whitespace-nowrap z-30">
+            ▼ YOUR TURN
+          </div>
+
+          <!-- Floating Damage Pop -->
+          <div id="p1DamageFloat" class="hidden absolute -top-8 left-1/2 font-extrabold text-2xl sm:text-4xl text-amber-300 drop-shadow-[0_3px_2px_rgba(220,38,38,1)] z-30 pointer-events-none whitespace-nowrap">
+            -6 HIT!
+          </div>
+
+          <!-- Live Animated Scanned Card / Spirit Character -->
+          <div id="p1SpriteWrap" class="w-28 h-36 sm:w-36 sm:h-48 z-10 anim-sf-idle-1 flex items-center justify-center">
+            <!-- Live scanned card or animated SVG injected by JS -->
+          </div>
+          <!-- Ground Shadow Platform -->
+          <div id="p1Platform" class="arena-platform w-28 sm:w-40 h-5 sm:h-6 rounded-[100%] -mt-2 transition-all"></div>
+        </div>
+
+        <!-- CENTER VS FLASH EMBLEM -->
+        <div class="mb-14 sm:mb-20 pointer-events-none select-none opacity-45">
+          <span class="font-extrabold italic text-2xl sm:text-4xl text-amber-300 tracking-widest drop-shadow">VS</span>
+        </div>
+
+        <!-- PLAYER 2 LIVE SCANNED CHARACTER (Right Side, Facing Left) -->
+        <div id="p2StageSide" class="relative flex flex-col items-center z-10 transition-all duration-300">
+          <!-- Active Turn Pointer Arrow above Fighter -->
+          <div id="p2StageMarker" class="hidden mb-1.5 px-3 py-0.5 rounded-full bg-amber-400 text-slate-950 font-extrabold text-[11px] sm:text-xs shadow-lg border-2 border-white animate-bounce whitespace-nowrap z-30">
+            ▼ YOUR TURN
+          </div>
+
+          <!-- Floating Damage Pop -->
+          <div id="p2DamageFloat" class="hidden absolute -top-8 left-1/2 font-extrabold text-2xl sm:text-4xl text-amber-300 drop-shadow-[0_3px_2px_rgba(220,38,38,1)] z-30 pointer-events-none whitespace-nowrap">
+            -6 HIT!
+          </div>
+
+          <!-- Live Animated Scanned Card / Spirit Character -->
+          <div id="p2SpriteWrap" class="w-28 h-36 sm:w-36 sm:h-48 z-10 anim-sf-idle-2 flex items-center justify-center">
+            <!-- Live scanned card or animated SVG injected by JS -->
+          </div>
+          <!-- Ground Shadow Platform -->
+          <div id="p2Platform" class="arena-platform w-28 sm:w-40 h-5 sm:h-6 rounded-[100%] -mt-2 transition-all"></div>
+        </div>
+
+      </div>
+
+      <!-- Street Fighter Arcade Arena Floor -->
+      <div class="sf-floor absolute inset-x-0 bottom-0 h-[36%] pointer-events-none z-0"></div>
+    </div>
+
+    <!-- Bottom RPG Command Console -->
+    <div class="bg-slate-900 border-4 border-slate-700 rounded-3xl p-3.5 sm:p-5 shadow-2xl">
+      
+      <!-- Narrator / Dialog Line -->
+      <div id="battleLogBox" class="bg-slate-800/90 border border-slate-700 rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between gap-2">
+        <p id="battleMessage" class="text-sm sm:text-base font-semibold text-slate-100">
+          Get ready to battle!
+        </p>
+        <span id="phaseBadge" class="shrink-0 px-2.5 py-1 rounded-lg bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-bold">
+          ASK PHASE
+        </span>
+      </div>
+
+      <!-- PHASE A: ASK A MATH QUESTION -->
+      <div id="askPanel" class="flex flex-col gap-3">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <div class="flex-1 flex items-center bg-slate-950 border-2 border-slate-600 focus-within:border-amber-400 rounded-2xl px-3.5 py-2">
+            <span class="text-amber-400 font-bold text-sm mr-2 shrink-0">Question:</span>
+            <input id="questionInput" type="text" placeholder="e.g. 3 + 3  or  8 + 7  or  4 x 5"
+              class="w-full bg-transparent font-mono text-lg sm:text-xl font-bold text-white outline-none" autocomplete="off" />
+          </div>
+          <div class="flex gap-2">
+            <button id="btnRandomQ" type="button" class="btn-rpg px-3.5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm border border-indigo-400 shrink-0">
+              🎲 Random
+            </button>
+            <button id="btnSendQ" type="button" class="btn-rpg flex-1 sm:flex-initial px-6 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-sm sm:text-base border-2 border-amber-200 shrink-0">
+              Start 1:00 Timer! ➡️
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Tap Preset Math Chips (No answers shown!) -->
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-xs text-slate-400 font-semibold mr-1">Quick Picks:</span>
+          <button type="button" data-q="3 + 3" class="quick-q px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs border border-slate-600">3 + 3</button>
+          <button type="button" data-q="5 + 4" class="quick-q px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs border border-slate-600">5 + 4</button>
+          <button type="button" data-q="7 + 6" class="quick-q px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs border border-slate-600">7 + 6</button>
+          <button type="button" data-q="3 x 5" class="quick-q px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs border border-slate-600">3 × 5</button>
+          <button type="button" data-q="20 - 8" class="quick-q px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs border border-slate-600">20 - 8</button>
+        </div>
+        <p id="askError" class="hidden text-xs font-bold text-rose-400"></p>
+      </div>
+
+      <!-- PHASE B: ANSWER BEFORE 1:00 RUNS OUT! -->
+      <div id="answerPanel" class="hidden flex flex-col gap-2.5">
+        <!-- 1-Minute Progress Bar -->
+        <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-700 p-0.5">
+          <div id="timerBarFill" class="h-full rounded-full bg-emerald-400 transition-all duration-300" style="width: 100%;"></div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div class="flex-1 flex items-center justify-between bg-slate-950 border-2 border-emerald-400 rounded-2xl px-4 py-2.5">
+            <div class="flex items-center gap-2">
+              <span class="text-xs uppercase tracking-wider font-bold text-emerald-400">Solve:</span>
+              <span id="displayQuestion" class="font-mono text-xl sm:text-2xl font-extrabold text-white">3 + 3 =</span>
+            </div>
+            <input id="answerInput" type="number" inputmode="numeric" placeholder="?"
+              class="w-24 sm:w-28 bg-slate-800 border-2 border-slate-600 focus:border-emerald-400 rounded-xl px-3 py-1.5 text-center font-mono text-xl sm:text-2xl font-extrabold text-amber-300 outline-none" />
+          </div>
+          <button id="btnSubmitAnswer" type="button" class="btn-rpg px-7 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 font-extrabold text-base sm:text-lg border-2 border-emerald-200">
+            ⚡ ANSWER & ATTACK!
+          </button>
+        </div>
+      </div>
+
+      <!-- PHASE C: ANIMATION / CPU THINKING -->
+      <div id="waitPanel" class="hidden py-3 text-center">
+        <span id="waitText" class="inline-flex items-center gap-2 text-amber-300 font-bold text-base sm:text-lg">
+          ⚡ Launching attack...
+        </span>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- ==================== CARD SCANNER AR MODAL ==================== -->
+  <div id="scannerModal" class="hidden fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5">
+    <div class="bg-slate-900 border-2 border-sky-400 rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl flex flex-col gap-3.5">
+      <div class="flex items-center justify-between">
+        <div>
+          <span id="scannerPlayerTag" class="px-2.5 py-0.5 rounded-md bg-sky-500 text-slate-950 text-[11px] font-extrabold uppercase">PLAYER 1</span>
+          <h3 class="text-lg sm:text-xl font-extrabold text-white mt-0.5">📷 Physical Card AR Scanner</h3>
+        </div>
+        <button id="btnCloseScanner" class="w-9 h-9 rounded-full bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+      </div>
+
+      <!-- Viewfinder Viewport -->
+      <div class="relative w-full aspect-[4/3] bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-700 flex items-center justify-center">
+        <!-- Live Camera Video -->
+        <video id="cameraVideo" autoplay playsinline muted class="hidden w-full h-full object-cover"></video>
+        <!-- Captured/Uploaded Image Preview -->
+        <img id="capturedCardPreview" src="" alt="Card Preview" class="hidden w-full h-full object-contain bg-slate-950" />
+        <!-- Camera Fallback Placeholder -->
+        <div id="cameraFallbackBox" class="p-4 text-center flex flex-col items-center gap-2">
+          <div class="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-600 flex items-center justify-center text-2xl">🃏</div>
+          <p id="cameraStatusMsg" class="text-xs sm:text-sm text-slate-300 font-semibold">
+            Hold your physical card up to the camera, or upload a photo of your card!
+          </p>
+        </div>
+
+        <!-- Holographic AR Card Framing Reticle -->
+        <div class="pointer-events-none absolute inset-4 border-2 border-dashed border-amber-400/80 rounded-xl flex flex-col justify-between p-2">
+          <div class="flex justify-between text-[10px] font-mono font-bold text-amber-300">
+            <span>[ CARD FRAME ]</span>
+            <span>AR READY</span>
+          </div>
+          <!-- Sweeping Laser Line -->
+          <div id="laserScanLine" class="hidden absolute left-1 right-1 h-1 bg-gradient-to-r from-transparent via-cyan-300 to-transparent shadow-[0_0_12px_#22d3ee] anim-scan-beam"></div>
+          <div class="text-center text-[10px] font-mono text-cyan-300/90 bg-slate-950/60 rounded py-0.5">
+            Align trading card inside frame
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Details Quick Edit inside Scanner -->
+      <div class="grid grid-cols-3 gap-2 bg-slate-800/80 p-2.5 rounded-2xl border border-slate-700">
+        <div class="col-span-2">
+          <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Auto-Detected Card Name</label>
+          <input id="scanModalNameInput" type="text" placeholder="Auto-reads when scanned..." maxlength="20"
+            class="w-full bg-slate-950 border border-slate-600 focus:border-sky-400 rounded-lg px-2.5 py-1.5 text-sm font-bold text-white outline-none" />
+        </div>
+        <div>
+          <label class="block text-[10px] uppercase text-slate-400 font-bold mb-1">Real Card HP</label>
+          <input id="scanModalHpInput" type="number" min="10" max="999" step="10" value="60"
+            class="w-full bg-slate-950 border border-slate-600 focus:border-amber-400 rounded-lg px-2 py-1.5 text-center text-sm font-extrabold text-amber-300 outline-none" />
+        </div>
+      </div>
+
+      <!-- AI Recognition Status Banner -->
+      <div id="scanAiStatus" class="hidden px-3 py-2 rounded-xl bg-indigo-950/90 border border-indigo-400/50 text-xs font-bold text-indigo-200 flex items-center gap-2">
+        <span class="w-3.5 h-3.5 rounded-full border-2 border-cyan-300 border-t-transparent animate-spin shrink-0"></span>
+        <span id="scanAiStatusText">AI reading real card Name & HP...</span>
+      </div>
+
+      <!-- Scanner Controls: Capture Camera OR Upload Photo -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <button id="btnCaptureCard" type="button" class="btn-rpg py-3 px-3 rounded-xl bg-gradient-to-r from-cyan-400 to-sky-500 text-slate-950 font-extrabold text-xs sm:text-sm border-2 border-cyan-200">
+          ⚡ Scan & Read Card!
+        </button>
+        <label class="btn-rpg py-3 px-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs sm:text-sm border border-slate-500 text-center cursor-pointer flex items-center justify-center gap-1">
+          🖼️ Upload Card Photo
+          <input id="cardFileInput" type="file" accept="image/*" class="hidden" />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== VICTORY OVERLAY MODAL ==================== -->
+  <div id="victoryModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-4 border-amber-400 rounded-3xl max-w-md w-full p-6 text-center shadow-2xl flex flex-col items-center gap-4">
+      <div class="px-4 py-1 rounded-full bg-amber-400/20 border border-amber-400 text-amber-300 text-xs font-extrabold uppercase tracking-widest">
+        🏆 Battle Complete!
+      </div>
+      <div id="winnerSpriteBox" class="w-32 h-32 anim-idle-1"></div>
+      <div>
+        <h2 id="winnerTitle" class="text-2xl sm:text-3xl font-extrabold text-white">Player 1 Wins!</h2>
+        <p id="winnerSubtitle" class="text-sm text-slate-300 mt-1">Sparkmouse knocked out Emberlizard!</p>
+      </div>
+
+      <!-- Match Stats -->
+      <div class="w-full grid grid-cols-3 gap-2 bg-slate-800/90 p-3 rounded-2xl border border-slate-700">
+        <div>
+          <div class="text-[11px] text-slate-400 font-semibold">Turns</div>
+          <div id="statTurns" class="text-lg font-extrabold text-white">6</div>
+        </div>
+        <div>
+          <div class="text-[11px] text-slate-400 font-semibold">Biggest Hit</div>
+          <div id="statMaxHit" class="text-lg font-extrabold text-amber-400">15 HP</div>
+        </div>
+        <div>
+          <div class="text-[11px] text-slate-400 font-semibold">Solved</div>
+          <div id="statSolved" class="text-lg font-extrabold text-emerald-400">5</div>
+        </div>
+      </div>
+
+      <div class="w-full grid grid-cols-2 gap-3 pt-1">
+        <button id="btnRematch" class="btn-rpg py-3 px-4 rounded-2xl bg-emerald-400 text-slate-950 font-extrabold text-sm sm:text-base border-2 border-emerald-200">
+          🔄 Rematch
+        </button>
+        <button id="btnChangeMonsters" class="btn-rpg py-3 px-4 rounded-2xl bg-slate-700 text-white font-extrabold text-sm sm:text-base border-2 border-slate-500">
+          🐾 Change Team
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== RULES MODAL ==================== -->
+  <div id="rulesModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 border-slate-600 rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-xl font-extrabold text-amber-400">📖 How to Play MathMon Card Battle</h3>
+        <button id="btnCloseRules" class="w-8 h-8 rounded-full bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+      </div>
+      <ol class="space-y-2.5 text-sm text-slate-200 list-decimal list-inside">
+        <li><strong class="text-white">Scan Your Physical Cards:</strong> You and your friend each bring a card, scan it with your phone camera (or upload a photo)—the scanner automatically reads the <span class="text-amber-300 font-bold">Character Name & Real HP</span> on the card and brings the character alive on the fighting stage!</li>
+        <li><strong class="text-white">Ask a Math Question:</strong> One player asks a math problem (for example, <code class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">3 + 3</code>).</li>
+        <li><strong class="text-white">Beat the 1-Minute Timer:</strong> The other player has <strong class="text-emerald-300">1:00 (60 seconds)</strong> to solve it! Answer <code class="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-300">6</code> in time and your character attacks for <strong class="text-rose-400">6 damage</strong> (60 HP → 54 HP).</li>
+        <li><strong class="text-white">Wrong Answer / Time's Up Rule:</strong> If a player gets the <strong class="text-rose-400">wrong answer</strong> (or runs out of the <code class="bg-slate-800 px-1.5 py-0.5 rounded text-rose-300">1:00</code> timer), the game points out the exact <strong class="text-amber-300">correct answer amount</strong> and <strong class="text-rose-400">deducts that amount from their HP</strong> via an automatic counter-attack!</li>
+      </ol>
+      <button id="btnGotItRules" class="btn-rpg w-full py-3 rounded-2xl bg-amber-400 text-slate-950 font-extrabold text-base">
+        Got It! Let's Scan & Battle!
+      </button>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================
+     *  MATHMON BATTLE ARENA - CARD SCANNER & 1-MINUTE TIMER ENGINE
+     * ============================================================
+     */
+
+    // --- 1. WEB AUDIO API RETRO SYNTHESIZER (No external audio files needed) ---
+    class SoundFX {
+      constructor() {
+        this.enabled = true;
+        this.ctx = null;
+        this.bgmTimer = null;
+        this.bgmStep = 0;
+        this.isBattleMusicActive = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      startBattleMusic() {
+        this.isBattleMusicActive = true;
+        if (!this.enabled) return;
+        this.init();
+        if (this.bgmTimer) return;
+
+        // Upbeat Street-Fighter / RPG arcade battle melody & bassline (140 BPM sixteenth/eighth loop)
+        const leadNotes = [
+          329.63, 0, 329.63, 392.00, 440.00, 0, 493.88, 392.00,
+          329.63, 0, 293.66, 329.63, 392.00, 0, 329.63, 246.94,
+          261.63, 0, 261.63, 329.63, 392.00, 0, 440.00, 392.00,
+          493.88, 0, 523.25, 493.88, 440.00, 392.00, 329.63, 293.66
+        ];
+        const bassNotes = [
+          164.81, 164.81, 164.81, 164.81, 196.00, 196.00, 196.00, 196.00,
+          146.83, 146.83, 146.83, 146.83, 164.81, 164.81, 123.47, 146.83,
+          130.81, 130.81, 130.81, 130.81, 196.00, 196.00, 196.00, 196.00,
+          246.94, 246.94, 220.00, 220.00, 196.00, 196.00, 164.81, 146.83
+        ];
+
+        this.bgmTimer = setInterval(() => {
+          if (!this.enabled || !this.isBattleMusicActive) return;
+          this.init();
+          if (!this.ctx) return;
+
+          const idx = this.bgmStep % leadNotes.length;
+          const lead = leadNotes[idx];
+          const bass = bassNotes[idx];
+
+          if (lead > 0) {
+            this.playTone(lead, 'square', 0.14, 0.045, 0);
+          }
+          if (bass > 0) {
+            this.playTone(bass, 'triangle', 0.16, 0.065, 0);
+          }
+          this.bgmStep += 1;
+        }, 185);
+      }
+
+      stopBattleMusic(clearActiveFlag = true) {
+        if (clearActiveFlag) this.isBattleMusicActive = false;
+        if (this.bgmTimer) {
+          clearInterval(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+      }
+
+      playTone(freq, type = 'triangle', duration = 0.15, vol = 0.18, delay = 0) {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+
+      click() {
+        this.playTone(520, 'sine', 0.08, 0.12);
+      }
+
+      cardSummon() {
+        this.playTone(330, 'sine', 0.14, 0.16, 0);
+        this.playTone(495, 'triangle', 0.16, 0.18, 0.08);
+        this.playTone(660, 'triangle', 0.18, 0.18, 0.16);
+        this.playTone(990, 'sine', 0.28, 0.2, 0.24);
+      }
+
+      timerTick(urgent = false) {
+        this.playTone(urgent ? 920 : 680, 'sine', 0.05, urgent ? 0.14 : 0.06);
+      }
+
+      timeUpAlarm() {
+        this.playTone(310, 'sawtooth', 0.18, 0.22, 0);
+        this.playTone(240, 'sawtooth', 0.28, 0.24, 0.16);
+      }
+
+      questionSent() {
+        this.playTone(440, 'triangle', 0.1, 0.15, 0);
+        this.playTone(660, 'triangle', 0.14, 0.15, 0.08);
+      }
+
+      attackLaunch(element) {
+        if (element === 'Electric') {
+          this.playTone(880, 'sawtooth', 0.08, 0.16, 0);
+          this.playTone(1240, 'square', 0.12, 0.16, 0.06);
+          this.playTone(620, 'sawtooth', 0.16, 0.16, 0.12);
+        } else if (element === 'Fire') {
+          this.playTone(220, 'sawtooth', 0.25, 0.2, 0);
+          this.playTone(340, 'triangle', 0.22, 0.18, 0.08);
+        } else if (element === 'Water') {
+          this.playTone(380, 'sine', 0.14, 0.18, 0);
+          this.playTone(560, 'sine', 0.18, 0.18, 0.08);
+        } else {
+          this.playTone(480, 'triangle', 0.15, 0.18, 0);
+          this.playTone(720, 'triangle', 0.18, 0.18, 0.08);
+        }
+      }
+
+      hitImpact() {
+        this.playTone(140, 'sawtooth', 0.22, 0.26, 0);
+        this.playTone(95, 'square', 0.28, 0.24, 0.05);
+      }
+
+      miss() {
+        this.playTone(320, 'sine', 0.14, 0.15, 0);
+        this.playTone(240, 'sine', 0.22, 0.15, 0.12);
+      }
+
+      victory() {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((n, idx) => {
+          this.playTone(n, 'triangle', 0.22, 0.2, idx * 0.11);
+        });
+      }
+    }
+
+    const sfx = new SoundFX();
+
+    // --- 2. MONSTER SPIRITS ROSTER (Custom Inline SVGs) ---
+    const MONSTERS = [
+      {
+        id: 'sparkmouse',
+        name: 'Sparkmouse',
+        element: 'Electric',
+        icon: '⚡',
+        color: '#facc15',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full">
+          <path d="M25 18 L44 50 L32 54 Z" fill="#facc15" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M25 18 L32 30 L27 32 Z" fill="#1e293b"/>
+          <path d="M95 18 L76 50 L88 54 Z" fill="#facc15" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M95 18 L88 30 L93 32 Z" fill="#1e293b"/>
+          <path d="M88 85 L108 68 L98 64 L112 48 L92 56 L98 68 Z" fill="#facc15" stroke="#1e293b" stroke-width="3.5" stroke-linejoin="round"/>
+          <ellipse cx="60" cy="72" rx="34" ry="32" fill="#fde047" stroke="#1e293b" stroke-width="4"/>
+          <circle cx="47" cy="64" r="5" fill="#1e293b"/><circle cx="48.5" cy="62.5" r="1.8" fill="#fff"/>
+          <circle cx="73" cy="64" r="5" fill="#1e293b"/><circle cx="74.5" cy="62.5" r="1.8" fill="#fff"/>
+          <circle cx="38" cy="74" r="6.5" fill="#ef4444"/>
+          <circle cx="82" cy="74" r="6.5" fill="#ef4444"/>
+          <path d="M54 74 Q60 80 66 74" fill="none" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>`
+      },
+      {
+        id: 'emberlizard',
+        name: 'Emberlizard',
+        element: 'Fire',
+        icon: '🔥',
+        color: '#fb923c',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full">
+          <path d="M92 78 Q112 68 104 46 Q94 58 86 68 Z" fill="#fb923c" stroke="#1e293b" stroke-width="4"/>
+          <path d="M104 46 Q114 34 102 24 Q94 36 100 46 Z" fill="#ef4444" stroke="#facc15" stroke-width="2"/>
+          <ellipse cx="58" cy="72" rx="32" ry="33" fill="#fb923c" stroke="#1e293b" stroke-width="4"/>
+          <ellipse cx="58" cy="80" rx="20" ry="20" fill="#fef08a"/>
+          <circle cx="46" cy="58" r="5.5" fill="#1e293b"/><circle cx="47.5" cy="56.5" r="2" fill="#fff"/>
+          <circle cx="70" cy="58" r="5.5" fill="#1e293b"/><circle cx="71.5" cy="56.5" r="2" fill="#fff"/>
+          <path d="M50 70 Q58 78 66 70" fill="none" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>`
+      },
+      {
+        id: 'aquashell',
+        name: 'Aquashell',
+        element: 'Water',
+        icon: '💧',
+        color: '#38bdf8',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full">
+          <ellipse cx="60" cy="75" rx="36" ry="28" fill="#92400e" stroke="#1e293b" stroke-width="4"/>
+          <circle cx="60" cy="56" r="26" fill="#38bdf8" stroke="#1e293b" stroke-width="4"/>
+          <circle cx="50" cy="52" r="5" fill="#1e293b"/><circle cx="51.5" cy="50.5" r="1.8" fill="#fff"/>
+          <circle cx="70" cy="52" r="5" fill="#1e293b"/><circle cx="71.5" cy="50.5" r="1.8" fill="#fff"/>
+          <path d="M52 63 Q60 70 68 63" fill="none" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M90 78 Q108 65 98 52 Q88 58 90 72" fill="#7dd3fc" stroke="#1e293b" stroke-width="3.5"/>
+        </svg>`
+      },
+      {
+        id: 'leafsprout',
+        name: 'Leafsprout',
+        element: 'Grass',
+        icon: '🌿',
+        color: '#4ade80',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full">
+          <path d="M60 44 C38 18 22 36 46 50 Z" fill="#16a34a" stroke="#1e293b" stroke-width="4"/>
+          <path d="M60 44 C82 18 98 36 74 50 Z" fill="#22c55e" stroke="#1e293b" stroke-width="4"/>
+          <ellipse cx="60" cy="74" rx="34" ry="29" fill="#4ade80" stroke="#1e293b" stroke-width="4"/>
+          <circle cx="47" cy="68" r="5" fill="#ef4444"/><circle cx="48.5" cy="66.5" r="1.6" fill="#fff"/>
+          <circle cx="73" cy="68" r="5" fill="#ef4444"/><circle cx="74.5" cy="66.5" r="1.6" fill="#fff"/>
+          <path d="M51 80 Q60 86 69 80" fill="none" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>`
+      },
+      {
+        id: 'shadoworb',
+        name: 'Shadoworb',
+        element: 'Psychic',
+        icon: '🔮',
+        color: '#c084fc',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full">
+          <path d="M32 42 L44 56 L54 36 L60 54 L66 36 L76 56 L88 42 L88 86 L74 98 L60 88 L46 98 L32 86 Z" fill="#7e22ce" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/>
+          <polygon points="42,66 55,72 44,76" fill="#fef08a"/>
+          <polygon points="78,66 65,72 76,76" fill="#fef08a"/>
+          <path d="M46 82 Q60 92 74 82" fill="none" stroke="#f8fafc" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>`
+      },
+      {
+        id: 'rockgolem',
+        name: 'Rockgolem',
+        element: 'Earth',
+        icon: '🪨',
+        color: '#a8a29e',
+        svg: `<svg viewBox="0 0 120 120" class="w-full h-full">
+          <polygon points="36,42 60,28 84,42 94,72 78,98 42,98 26,72" fill="#a8a29e" stroke="#1e293b" stroke-width="4" stroke-linejoin="round"/>
+          <rect x="20" y="58" width="16" height="22" rx="6" fill="#78716c" stroke="#1e293b" stroke-width="3.5"/>
+          <rect x="84" y="58" width="16" height="22" rx="6" fill="#78716c" stroke="#1e293b" stroke-width="3.5"/>
+          <circle cx="48" cy="64" r="5" fill="#1e293b"/><circle cx="49.5" cy="62.5" r="1.8" fill="#fff"/>
+          <circle cx="72" cy="64" r="5" fill="#1e293b"/><circle cx="73.5" cy="62.5" r="1.8" fill="#fff"/>
+          <path d="M48 80 L54 76 L60 80 L66 76 L72 80" fill="none" stroke="#1e293b" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>`
+      }
+    ];
+
+    // --- 3. GAME STATE ---
+    const state = {
+      isCPU: false,
+      firstAsker: 1, // 1 = Player 1 asks first, 2 = Player 2 asks first
+      damageCap: null, // null (No limit) or 25
+      p1: {
+        name: 'You',
+        monsterIndex: 0,
+        monster: MONSTERS[0], // Sparkmouse
+        customName: 'Sparkmouse',
+        scannedCardDataUrl: null,
+        maxHp: 60,
+        hp: 60
+      },
+      p2: {
+        name: 'Friend',
+        monsterIndex: 1,
+        monster: MONSTERS[1], // Emberlizard
+        customName: 'Emberlizard',
+        scannedCardDataUrl: null,
+        maxHp: 40,
+        hp: 40
+      },
+      // Active Scanner State
+      scanningForPlayer: 1,
+      cameraStream: null,
+      pendingUploadedDataUrl: null,
+      // Active Battle Turn Variables
+      turnCount: 1,
+      asker: 1, // Who is currently asking the math problem (1 or 2)
+      phase: 'ASK', // 'ASK' | 'ANSWER' | 'ANIMATING' | 'GAMEOVER'
+      currentQuestionText: '',
+      currentCorrectAnswer: 0,
+      timeLeft: 60,
+      timerInterval: null,
+      stats: {
+        maxHit: 0,
+        solvedCount: 0
+      }
+    };
+
+    // --- 4. DOM REFERENCES ---
+    const el = {
+      setupScreen: document.getElementById('setupScreen'),
+      battleScreen: document.getElementById('battleScreen'),
+      btnHome: document.getElementById('btnHome'),
+      btnSound: document.getElementById('btnSound'),
+      btnRules: document.getElementById('btnRules'),
+      rulesModal: document.getElementById('rulesModal'),
+      btnCloseRules: document.getElementById('btnCloseRules'),
+      btnGotItRules: document.getElementById('btnGotItRules'),
+
+      // Setup Controls
+      mode2P: document.getElementById('mode2P'),
+      modeCPU: document.getElementById('modeCPU'),
+      firstP1: document.getElementById('firstP1'),
+      firstP2: document.getElementById('firstP2'),
+      firstP2Label: document.getElementById('firstP2Label'),
+      cap25: document.getElementById('cap25'),
+      capNone: document.getElementById('capNone'),
+      p1NameInput: document.getElementById('p1NameInput'),
+      p2NameInput: document.getElementById('p2NameInput'),
+      p2Badge: document.getElementById('p2Badge'),
+      p1HpInput: document.getElementById('p1HpInput'),
+      p2HpInput: document.getElementById('p2HpInput'),
+      p1MonsterNameInput: document.getElementById('p1MonsterNameInput'),
+      p2MonsterNameInput: document.getElementById('p2MonsterNameInput'),
+      p1PreviewMonster: document.getElementById('p1PreviewMonster'),
+      p2PreviewMonster: document.getElementById('p2PreviewMonster'),
+      p1ElementLabel: document.getElementById('p1ElementLabel'),
+      p2ElementLabel: document.getElementById('p2ElementLabel'),
+      p1CardStatusBadge: document.getElementById('p1CardStatusBadge'),
+      p2CardStatusBadge: document.getElementById('p2CardStatusBadge'),
+      p1ScannedThumbWrap: document.getElementById('p1ScannedThumbWrap'),
+      p1ScannedImg: document.getElementById('p1ScannedImg'),
+      p2ScannedThumbWrap: document.getElementById('p2ScannedThumbWrap'),
+      p2ScannedImg: document.getElementById('p2ScannedImg'),
+      btnScanP2: document.getElementById('btnScanP2'),
+      btnStartBattle: document.getElementById('btnStartBattle'),
+
+      // Card Scanner Modal
+      scannerModal: document.getElementById('scannerModal'),
+      scannerPlayerTag: document.getElementById('scannerPlayerTag'),
+      btnCloseScanner: document.getElementById('btnCloseScanner'),
+      cameraVideo: document.getElementById('cameraVideo'),
+      capturedCardPreview: document.getElementById('capturedCardPreview'),
+      cameraFallbackBox: document.getElementById('cameraFallbackBox'),
+      cameraStatusMsg: document.getElementById('cameraStatusMsg'),
+      laserScanLine: document.getElementById('laserScanLine'),
+      scanModalNameInput: document.getElementById('scanModalNameInput'),
+      scanModalHpInput: document.getElementById('scanModalHpInput'),
+      scanAiStatus: document.getElementById('scanAiStatus'),
+      scanAiStatusText: document.getElementById('scanAiStatusText'),
+      btnCaptureCard: document.getElementById('btnCaptureCard'),
+      cardFileInput: document.getElementById('cardFileInput'),
+
+      // Battle Stage & HUD
+      arenaContainer: document.getElementById('arenaContainer'),
+      fxCanvas: document.getElementById('fxCanvas'),
+      turnBannerText: document.getElementById('turnBannerText'),
+      timerPill: document.getElementById('timerPill'),
+      timerText: document.getElementById('timerText'),
+      timerBarFill: document.getElementById('timerBarFill'),
+      hudLimitLabel: document.getElementById('hudLimitLabel'),
+
+      p1Hud: document.getElementById('p1Hud'),
+      p1MonName: document.getElementById('p1MonName'),
+      p1TrainerTag: document.getElementById('p1TrainerTag'),
+      p1HpBar: document.getElementById('p1HpBar'),
+      p1TypeBadge: document.getElementById('p1TypeBadge'),
+      p1TurnRoleBadge: document.getElementById('p1TurnRoleBadge'),
+      p1HpText: document.getElementById('p1HpText'),
+      p1StageSide: document.getElementById('p1StageSide'),
+      p1StageMarker: document.getElementById('p1StageMarker'),
+      p1Platform: document.getElementById('p1Platform'),
+      p1SpriteWrap: document.getElementById('p1SpriteWrap'),
+      p1DamageFloat: document.getElementById('p1DamageFloat'),
+      p1ArenaCardBadge: document.getElementById('p1ArenaCardBadge'),
+      p1ArenaCardImg: document.getElementById('p1ArenaCardImg'),
+
+      p2Hud: document.getElementById('p2Hud'),
+      p2MonName: document.getElementById('p2MonName'),
+      p2TrainerTag: document.getElementById('p2TrainerTag'),
+      p2HpBar: document.getElementById('p2HpBar'),
+      p2TypeBadge: document.getElementById('p2TypeBadge'),
+      p2TurnRoleBadge: document.getElementById('p2TurnRoleBadge'),
+      p2HpText: document.getElementById('p2HpText'),
+      p2StageSide: document.getElementById('p2StageSide'),
+      p2StageMarker: document.getElementById('p2StageMarker'),
+      p2Platform: document.getElementById('p2Platform'),
+      p2SpriteWrap: document.getElementById('p2SpriteWrap'),
+      p2DamageFloat: document.getElementById('p2DamageFloat'),
+      p2ArenaCardBadge: document.getElementById('p2ArenaCardBadge'),
+      p2ArenaCardImg: document.getElementById('p2ArenaCardImg'),
+
+      // Bottom Console
+      battleLogBox: document.getElementById('battleLogBox'),
+      battleMessage: document.getElementById('battleMessage'),
+      phaseBadge: document.getElementById('phaseBadge'),
+      askPanel: document.getElementById('askPanel'),
+      questionInput: document.getElementById('questionInput'),
+      btnRandomQ: document.getElementById('btnRandomQ'),
+      btnSendQ: document.getElementById('btnSendQ'),
+      askError: document.getElementById('askError'),
+
+      answerPanel: document.getElementById('answerPanel'),
+      displayQuestion: document.getElementById('displayQuestion'),
+      answerInput: document.getElementById('answerInput'),
+      btnSubmitAnswer: document.getElementById('btnSubmitAnswer'),
+
+      waitPanel: document.getElementById('waitPanel'),
+      waitText: document.getElementById('waitText'),
+
+      // Victory Modal
+      victoryModal: document.getElementById('victoryModal'),
+      winnerSpriteBox: document.getElementById('winnerSpriteBox'),
+      winnerTitle: document.getElementById('winnerTitle'),
+      winnerSubtitle: document.getElementById('winnerSubtitle'),
+      statTurns: document.getElementById('statTurns'),
+      statMaxHit: document.getElementById('statMaxHit'),
+      statSolved: document.getElementById('statSolved'),
+      btnRematch: document.getElementById('btnRematch'),
+      btnChangeMonsters: document.getElementById('btnChangeMonsters')
+    };
+
+    // --- 5. SETUP SCREEN & PHYSICAL CARD SCANNER SYSTEM ---
+    function buildLiveFighterMarkup(pObj, sideNum) {
+      // If we extracted a clean cutout character sprite from the scanned card, render it moving freely like a Street Fighter character!
+      if (pObj.cutoutSpriteDataUrl) {
+        const flipClass = sideNum === 2 ? 'scale-x-[-1]' : '';
+        return `
+          <div class="relative w-full h-full flex flex-col items-center justify-end">
+            <img src="${pObj.cutoutSpriteDataUrl}" alt="${pObj.customName}" class="live-character-cutout w-full h-[88%] object-contain ${flipClass}" />
+            <div class="mt-0.5 px-2 py-0.5 rounded-full bg-slate-950/90 border border-amber-400/70 text-[10px] sm:text-xs font-extrabold text-amber-300 uppercase tracking-wide shadow">
+              ${pObj.monster.icon} ${pObj.customName}
+            </div>
+          </div>
+        `;
+      }
+      // If the player scanned or uploaded a card photo, bring THAT exact card character to life on stage!
+      if (pObj.scannedCardDataUrl) {
+        const badgeColor = sideNum === 1 ? 'bg-sky-500 text-slate-950' : 'bg-rose-500 text-white';
+        return `
+          <div class="live-card-fighter w-full h-full flex flex-col">
+            <img src="${pObj.scannedCardDataUrl}" alt="${pObj.customName}" class="w-full h-full object-cover" />
+            <div class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded ${badgeColor} text-[9px] font-extrabold uppercase shadow">
+              ${pObj.monster.icon} LIVE
+            </div>
+            <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent px-2 py-1 text-center">
+              <span class="text-[11px] sm:text-xs font-extrabold text-amber-300 uppercase tracking-wide drop-shadow">${pObj.customName}</span>
+            </div>
+          </div>
+        `;
+      }
+      // Fallback animated SVG spirit if they didn't scan a card yet
+      return pObj.monster.svg;
+    }
+
+    function renderSetupCards(animatePlayer = null) {
+      [1, 2].forEach((pNum) => {
+        const pObj = pNum === 1 ? state.p1 : state.p2;
+        const previewEl = pNum === 1 ? el.p1PreviewMonster : el.p2PreviewMonster;
+        const elemLabel = pNum === 1 ? el.p1ElementLabel : el.p2ElementLabel;
+        const thumbWrap = pNum === 1 ? el.p1ScannedThumbWrap : el.p2ScannedThumbWrap;
+        const thumbImg = pNum === 1 ? el.p1ScannedImg : el.p2ScannedImg;
+        const badgeEl = pNum === 1 ? el.p1CardStatusBadge : el.p2CardStatusBadge;
+
+        // Show the live animated card character right in the setup preview once scanned!
+        if (pObj.scannedCardDataUrl || pObj.cutoutSpriteDataUrl) {
+          previewEl.innerHTML = buildLiveFighterMarkup(pObj, pNum);
+          previewEl.className = `w-20 h-24 shrink-0 flex items-center justify-center ${pNum === 1 ? 'anim-sf-idle-1' : 'anim-sf-idle-2'}`;
+          if (pObj.scannedCardDataUrl && pObj.cutoutSpriteDataUrl) {
+            thumbImg.src = pObj.scannedCardDataUrl;
+            thumbWrap.classList.remove('hidden');
+          } else {
+            thumbWrap.classList.add('hidden');
+          }
+          badgeEl.textContent = `✓ ${pObj.maxHp} HP LIVE FIGHTER`;
+          badgeEl.className = 'px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/40 text-[10px] font-extrabold';
+        } else {
+          previewEl.innerHTML = pObj.monster.svg;
+          previewEl.className = `w-24 h-24 shrink-0 flex items-center justify-center ${pNum === 1 ? 'anim-idle-1' : 'anim-idle-2'}`;
+          thumbWrap.classList.add('hidden');
+          badgeEl.textContent = 'READY TO SCAN';
+          badgeEl.className = 'px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-extrabold';
+        }
+
+        elemLabel.textContent = `${pObj.monster.icon} ${pObj.monster.element} Spirit`;
+
+        if (animatePlayer === pNum) {
+          previewEl.classList.remove('anim-materialize');
+          void previewEl.offsetWidth; // trigger reflow
+          previewEl.classList.add('anim-materialize');
+        }
+      });
+    }
+
+    // Exponential backoff fetch helper for Gemini API calls
+    async function fetchWithRetry(url, options, maxRetries = 3) {
+      let delay = 1000;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const response = await fetch(url, options);
+        if (response.ok) return response;
+        if (attempt === maxRetries) return response;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay *= 2;
+      }
+    }
+
+    // Recognize real Character Name, real HP, and Element from the scanned card image using Gemini Vision
+    async function recognizeCardDetailsWithAI(dataUrl) {
+      try {
+        const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+        if (!match) return null;
+        const mimeType = match[1];
+        const base64Data = match[2];
+
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        const payload = {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: "Inspect this trading card / Pokémon card image. Extract the exact character/creature name printed on the card, the exact numeric HP value printed on the card (e.g., 60, 70, 120, 200), and its elemental type (Electric, Fire, Water, Grass, Psychic, or Earth). If a field is unclear, make your best reading."
+                },
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                characterName: { type: "STRING" },
+                hp: { type: "INTEGER" },
+                element: {
+                  type: "STRING",
+                  enum: ["Electric", "Fire", "Water", "Grass", "Psychic", "Earth"]
+                }
+              },
+              required: ["characterName", "hp", "element"]
+            }
+          }
+        };
+
+        const resp = await fetchWithRetry(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp || !resp.ok) return null;
+        const json = await resp.json();
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) return null;
+        return JSON.parse(text);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    // Extract a live full-body fighting character cutout from the scanned card using Gemini Image Editing
+    async function extractLiveCharacterCutout(dataUrl, charName) {
+      try {
+        const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
+        if (!match) return null;
+        const mimeType = match[1];
+        const base64Data = match[2];
+
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey}`;
+
+        const payload = {
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `Extract the main creature/character (${charName}) from this trading card as a dynamic full-body arcade fighting-game character in an active battle pose facing right, isolated cleanly on a pure solid magenta (#FF00FF) background with NO card borders, NO text, and NO UI boxes.`
+                },
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseModalities: ['IMAGE']
+          }
+        };
+
+        const resp = await fetchWithRetry(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp || !resp.ok) return null;
+        const result = await resp.json();
+        const part = result?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+        if (!part || !part.inlineData?.data) return null;
+
+        const rawCutoutUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+        return await keyOutSolidBackground(rawCutoutUrl);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    // Chroma-key out the solid background color so the fighter moves cleanly over the battle stage
+    function keyOutSolidBackground(imgDataUrl) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imgData.data;
+
+          // Sample corner pixel as background key color
+          const bgR = data[0];
+          const bgG = data[1];
+          const bgB = data[2];
+
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+            if (dist < 78) {
+              data[i + 3] = 0;
+            } else if (dist < 105) {
+              data[i + 3] = Math.round(((dist - 78) / 27) * 255);
+            }
+          }
+
+          ctx.putImageData(imgData, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve(null);
+        img.src = imgDataUrl;
+      });
+    }
+
+    async function runLiveCardRecognition(dataUrl) {
+      el.scanAiStatus.classList.remove('hidden');
+      el.scanAiStatusText.textContent = '🔍 Reading real character name & HP from card...';
+      el.btnCaptureCard.disabled = true;
+
+      const recognized = await recognizeCardDetailsWithAI(dataUrl);
+      if (recognized) {
+        if (recognized.characterName) {
+          el.scanModalNameInput.value = recognized.characterName.slice(0, 20);
+        }
+        if (recognized.hp && Number.isFinite(recognized.hp) && recognized.hp >= 10) {
+          el.scanModalHpInput.value = Math.min(999, Math.max(10, recognized.hp));
+        }
+        if (recognized.element) {
+          const pObj = state.scanningForPlayer === 1 ? state.p1 : state.p2;
+          const foundIdx = MONSTERS.findIndex((m) => m.element.toLowerCase() === recognized.element.toLowerCase());
+          if (foundIdx >= 0) {
+            pObj.monsterIndex = foundIdx;
+            pObj.monster = MONSTERS[foundIdx];
+          }
+        }
+        el.scanAiStatusText.textContent = `✅ Detected: ${el.scanModalNameInput.value} (${el.scanModalHpInput.value} HP)! Tap "Scan & Read Card!" to summon!`;
+        sfx.questionSent();
+      } else {
+        el.scanAiStatusText.textContent = 'Card photo loaded! Verify Name & HP above, then tap "Scan & Read Card!"';
+      }
+      el.btnCaptureCard.disabled = false;
+    }
+
+    async function confirmCardScanAndSummon() {
+      const pNum = state.scanningForPlayer;
+      const pObj = pNum === 1 ? state.p1 : state.p2;
+
+      let capturedDataUrl = state.pendingUploadedDataUrl;
+
+      // If live camera stream is active, capture a frame from the video!
+      if (!capturedDataUrl && state.cameraStream && el.cameraVideo.videoWidth > 0) {
+        const snapCanvas = document.createElement('canvas');
+        snapCanvas.width = el.cameraVideo.videoWidth;
+        snapCanvas.height = el.cameraVideo.videoHeight;
+        const ctx = snapCanvas.getContext('2d');
+        ctx.drawImage(el.cameraVideo, 0, 0, snapCanvas.width, snapCanvas.height);
+        capturedDataUrl = snapCanvas.toDataURL('image/jpeg', 0.85);
+      }
+
+      el.btnCaptureCard.disabled = true;
+      el.scanAiStatus.classList.remove('hidden');
+
+      // If captured directly from live camera, run AI OCR on the captured frame first!
+      if (capturedDataUrl && !state.pendingUploadedDataUrl) {
+        el.scanAiStatusText.textContent = '🔍 Recognizing real Character Name & HP on your card...';
+        const recognized = await recognizeCardDetailsWithAI(capturedDataUrl);
+        if (recognized) {
+          if (recognized.characterName) el.scanModalNameInput.value = recognized.characterName.slice(0, 20);
+          if (recognized.hp && Number.isFinite(recognized.hp) && recognized.hp >= 10) {
+            el.scanModalHpInput.value = Math.min(999, Math.max(10, recognized.hp));
+          }
+          if (recognized.element) {
+            const foundIdx = MONSTERS.findIndex((m) => m.element.toLowerCase() === recognized.element.toLowerCase());
+            if (foundIdx >= 0) {
+              pObj.monsterIndex = foundIdx;
+              pObj.monster = MONSTERS[foundIdx];
+            }
+          }
+        }
+      }
+
+      const enteredName = el.scanModalNameInput.value.trim() || pObj.monster.name;
+      const enteredHp = Math.max(10, Math.min(999, Number(el.scanModalHpInput.value) || 60));
+
+      let cutoutDataUrl = null;
+      if (capturedDataUrl) {
+        el.scanAiStatusText.textContent = `⚡ Bringing ${enteredName} (${enteredHp} HP) alive as a fighting character...`;
+        cutoutDataUrl = await extractLiveCharacterCutout(capturedDataUrl, enteredName);
+      } else {
+        capturedDataUrl = createSyntheticCardSnap(pObj.monster, enteredName, enteredHp);
+      }
+
+      pObj.scannedCardDataUrl = capturedDataUrl;
+      pObj.cutoutSpriteDataUrl = cutoutDataUrl;
+      pObj.customName = enteredName;
+      pObj.maxHp = enteredHp;
+      pObj.hp = enteredHp;
+
+      if (pNum === 1) {
+        el.p1MonsterNameInput.value = enteredName;
+        el.p1HpInput.value = enteredHp;
+      } else {
+        el.p2MonsterNameInput.value = enteredName;
+        el.p2HpInput.value = enteredHp;
+      }
+
+      el.btnCaptureCard.disabled = false;
+      el.scanAiStatus.classList.add('hidden');
+      sfx.cardSummon();
+      closeCardScanner();
+      renderSetupCards(pNum);
+    }
+
+    function stopCameraStream() {
+      if (state.cameraStream) {
+        state.cameraStream.getTracks().forEach((track) => track.stop());
+        state.cameraStream = null;
+      }
+      el.cameraVideo.srcObject = null;
+    }
+
+    function createSyntheticCardSnap(monster, cardName, cardHp) {
+      const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="320" viewBox="0 0 240 320">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#1e293b"/>
+            <stop offset="100%" stop-color="#0f172a"/>
+          </linearGradient>
+        </defs>
+        <rect width="240" height="320" rx="18" fill="url(#bg)" stroke="${monster.color}" stroke-width="10"/>
+        <text x="20" y="38" fill="#ffffff" font-family="sans-serif" font-weight="bold" font-size="18">${cardName}</text>
+        <text x="220" y="38" text-anchor="end" fill="#facc15" font-family="monospace" font-weight="bold" font-size="18">${cardHp} HP</text>
+        <g transform="translate(45, 70) scale(1.25)">${monster.svg.replace(/<svg[^>]*>|<\/svg>/g, '')}</g>
+        <text x="120" y="288" text-anchor="middle" fill="${monster.color}" font-family="sans-serif" font-weight="bold" font-size="15">${monster.element.toUpperCase()} SPIRIT</text>
+      </svg>`;
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgMarkup);
+    }
+
+    async function openCardScanner(playerNum) {
+      sfx.click();
+      state.scanningForPlayer = playerNum;
+      state.pendingUploadedDataUrl = null;
+
+      const pObj = playerNum === 1 ? state.p1 : state.p2;
+      el.scannerPlayerTag.textContent = playerNum === 1 ? 'PLAYER 1 (YOU)' : (state.isCPU ? 'CPU RIVAL' : 'PLAYER 2 (FRIEND)');
+      el.scannerPlayerTag.className = playerNum === 1
+        ? 'px-2.5 py-0.5 rounded-md bg-sky-500 text-slate-950 text-[11px] font-extrabold uppercase'
+        : 'px-2.5 py-0.5 rounded-md bg-rose-500 text-white text-[11px] font-extrabold uppercase';
+
+      el.scanModalNameInput.value = pObj.customName || pObj.monster.name;
+      el.scanModalHpInput.value = pObj.maxHp || (playerNum === 1 ? 60 : 40);
+      el.cardFileInput.value = '';
+      el.scanAiStatus.classList.add('hidden');
+      el.btnCaptureCard.disabled = false;
+
+      el.capturedCardPreview.classList.add('hidden');
+      el.cameraVideo.classList.add('hidden');
+      el.cameraFallbackBox.classList.remove('hidden');
+      el.laserScanLine.classList.remove('hidden');
+      el.cameraStatusMsg.textContent = 'Starting camera... or tap "Upload Card Photo" below!';
+
+      el.scannerModal.classList.remove('hidden');
+
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' } },
+            audio: false
+          });
+          state.cameraStream = stream;
+          el.cameraVideo.srcObject = stream;
+          el.cameraVideo.classList.remove('hidden');
+          el.cameraFallbackBox.classList.add('hidden');
+        } else {
+          el.cameraStatusMsg.textContent = 'Camera unavailable in this browser. Tap "Upload Card Photo" to scan a picture of your card!';
+        }
+      } catch (err) {
+        el.cameraStatusMsg.textContent = 'Camera permission denied or unavailable. Tap "Upload Card Photo" to load your card!';
+      }
+    }
+
+    function closeCardScanner() {
+      stopCameraStream();
+      el.laserScanLine.classList.add('hidden');
+      el.scannerModal.classList.add('hidden');
+    }
+
+    function updateSetupToggles() {
+      // Mode buttons
+      if (!state.isCPU) {
+        el.mode2P.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 text-slate-950 border-2 border-emerald-300';
+        el.modeCPU.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-700 text-slate-200 border-2 border-slate-600';
+        el.p2Badge.textContent = "FRIEND'S CARD";
+        el.firstP2Label.textContent = 'Friend';
+        el.btnScanP2.innerHTML = "📷 Scan Friend's Physical Card";
+        if (el.p2NameInput.value === 'CPU Bot') el.p2NameInput.value = 'Friend';
+        el.p2NameInput.disabled = false;
+      } else {
+        el.modeCPU.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 text-slate-950 border-2 border-emerald-300';
+        el.mode2P.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-700 text-slate-200 border-2 border-slate-600';
+        el.p2Badge.textContent = 'CPU CARD';
+        el.firstP2Label.textContent = 'CPU Bot';
+        el.btnScanP2.innerHTML = '🤖 Scan Rival CPU Card';
+        el.p2NameInput.value = 'CPU Bot';
+        el.p2NameInput.disabled = true;
+      }
+
+      // First turn buttons
+      if (state.firstAsker === 1) {
+        el.firstP1.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-sky-500 text-slate-950 border-2 border-sky-300';
+        el.firstP2.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-700 text-slate-200 border-2 border-slate-600';
+      } else {
+        el.firstP2.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-sky-500 text-slate-950 border-2 border-sky-300';
+        el.firstP1.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-700 text-slate-200 border-2 border-slate-600';
+      }
+
+      // Damage cap buttons
+      if (state.damageCap === 25) {
+        el.cap25.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-purple-500 text-white border-2 border-purple-300';
+        el.capNone.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-700 text-slate-200 border-2 border-slate-600';
+      } else {
+        el.capNone.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-purple-500 text-white border-2 border-purple-300';
+        el.cap25.className = 'btn-rpg py-2 px-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-700 text-slate-200 border-2 border-slate-600';
+      }
+    }
+
+    // --- 6. SAFE MATH EXPRESSION PARSER & GENERATOR ---
+    function parseMathExpression(raw) {
+      if (!raw || typeof raw !== 'string') {
+        return { valid: false, error: 'Please type a math problem like 3 + 3!' };
+      }
+      // Normalize multiplication/division symbols
+      const cleaned = raw.trim().replace(/×/g, '*').replace(/[xX]/g, '*').replace(/÷/g, '/');
+
+      // Allow only numbers, +, -, *, /, spaces, and parentheses
+      if (!/^[0-9+\-*/().\s]+$/.test(cleaned)) {
+        return { valid: false, error: 'Use numbers and +, -, ×, or ÷ only (e.g., 3 + 3).' };
+      }
+
+      // Must contain at least one operator so player doesn't just type a single number
+      if (!/[+\-*/]/.test(cleaned)) {
+        return { valid: false, error: 'Include +, -, ×, or ÷ (for example: 3 + 3).' };
+      }
+
+      try {
+        // Safely evaluate arithmetic expression
+        const result = Function(`"use strict"; return (${cleaned});`)();
+        if (typeof result !== 'number' || !Number.isFinite(result)) {
+          return { valid: false, error: 'That math expression is invalid. Try 6 + 4!' };
+        }
+        if (!Number.isInteger(result)) {
+          return { valid: false, error: 'Make sure the answer is a whole number!' };
+        }
+        if (result < 1) {
+          return { valid: false, error: 'The answer must be at least 1 damage!' };
+        }
+        if (state.damageCap !== null && result > state.damageCap) {
+          return {
+            valid: false,
+            error: `Answer is ${result}, which is over the Max ${state.damageCap} limit!`
+          };
+        }
+
+        // Format nicely for display
+        const pretty = cleaned.replace(/\*/g, '×').replace(/\//g, '÷');
+        return { valid: true, question: pretty, answer: result };
+      } catch (e) {
+        return { valid: false, error: 'Could not read that math problem. Try 5 + 7!' };
+      }
+    }
+
+    function generateRandomQuestion() {
+      const types = ['add', 'sub', 'mul'];
+      const pick = types[Math.floor(Math.random() * types.length)];
+      const maxAns = state.damageCap || 30;
+
+      if (pick === 'add') {
+        const a = Math.floor(Math.random() * Math.min(14, maxAns - 2)) + 2;
+        const b = Math.floor(Math.random() * Math.min(12, maxAns - a)) + 1;
+        return { question: `${a} + ${b}`, answer: a + b };
+      } else if (pick === 'sub') {
+        const ans = Math.floor(Math.random() * Math.min(15, maxAns - 1)) + 2;
+        const b = Math.floor(Math.random() * 10) + 2;
+        const a = ans + b;
+        return { question: `${a} - ${b}`, answer: ans };
+      } else {
+        const a = Math.floor(Math.random() * 5) + 2;
+        const maxB = Math.max(2, Math.floor(maxAns / a));
+        const b = Math.floor(Math.random() * Math.min(6, maxB - 1)) + 2;
+        return { question: `${a} × ${b}`, answer: a * b };
+      }
+    }
+
+    // --- 7. PROJECTILE & EXPLOSION PARTICLE SYSTEM (CANVAS) ---
+    const particles = [];
+    let animFrameId = null;
+
+    function resizeFxCanvas() {
+      const rect = el.arenaContainer.getBoundingClientRect();
+      el.fxCanvas.width = rect.width;
+      el.fxCanvas.height = rect.height;
+    }
+
+    function spawnAttackEffect(fromPlayerNum, color, onImpactCallback) {
+      resizeFxCanvas();
+      const w = el.fxCanvas.width;
+      const h = el.fxCanvas.height;
+
+      // Side-by-side Street Fighter stage coordinates
+      const startX = fromPlayerNum === 1 ? w * 0.24 : w * 0.76;
+      const startY = h * 0.64;
+      const endX = fromPlayerNum === 1 ? w * 0.76 : w * 0.24;
+      const endY = h * 0.64;
+
+      const projectile = {
+        x: startX,
+        y: startY,
+        startX,
+        startY,
+        endX,
+        endY,
+        progress: 0,
+        color,
+        done: false
+      };
+
+      function loop() {
+        const ctx = el.fxCanvas.getContext('2d');
+        ctx.clearRect(0, 0, el.fxCanvas.width, el.fxCanvas.height);
+
+        // Update & draw Street Fighter Hadouken-style energy blast
+        if (!projectile.done) {
+          projectile.progress += 0.065;
+          const t = Math.min(1, projectile.progress);
+          projectile.x = projectile.startX + (projectile.endX - projectile.startX) * t;
+          projectile.y = projectile.startY + Math.sin(t * Math.PI * 3) * 8;
+
+          // Spawn trailing energy streaks
+          for (let i = 0; i < 4; i++) {
+            particles.push({
+              x: projectile.x + (Math.random() - 0.5) * 18,
+              y: projectile.y + (Math.random() - 0.5) * 18,
+              vx: (fromPlayerNum === 1 ? -1 : 1) * (Math.random() * 4 + 1),
+              vy: (Math.random() - 0.5) * 4,
+              radius: Math.random() * 7 + 3,
+              alpha: 1,
+              color: projectile.color
+            });
+          }
+
+          // Draw Street Fighter Fireball Core
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(projectile.x, projectile.y, 22, 0, Math.PI * 2);
+          ctx.fillStyle = projectile.color;
+          ctx.shadowBlur = 26;
+          ctx.shadowColor = projectile.color;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(projectile.x, projectile.y, 11, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.restore();
+
+          if (t >= 1) {
+            projectile.done = true;
+            // Arcade Hit-Spark Explosion at opponent
+            for (let i = 0; i < 36; i++) {
+              const angle = (Math.PI * 2 * i) / 36;
+              const speed = Math.random() * 8 + 3;
+              particles.push({
+                x: projectile.endX,
+                y: projectile.endY,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                radius: Math.random() * 9 + 4,
+                alpha: 1,
+                color: i % 2 === 0 ? projectile.color : '#fef08a'
+              });
+            }
+            if (onImpactCallback) onImpactCallback();
+          }
+        }
+
+        // Update & draw all particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.alpha -= 0.035;
+          p.radius *= 0.96;
+
+          if (p.alpha <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, p.alpha);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = p.color;
+          ctx.fill();
+          ctx.restore();
+        }
+
+        if (!projectile.done || particles.length > 0) {
+          animFrameId = requestAnimationFrame(loop);
+        } else {
+          ctx.clearRect(0, 0, el.fxCanvas.width, el.fxCanvas.height);
+        }
+      }
+
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      animFrameId = requestAnimationFrame(loop);
+    }
+
+    // --- 8. BATTLE ENGINE, 1-MINUTE TIMER & COUNTER-ATTACK LOGIC ---
+    function stopTurnTimer() {
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+      el.timerPill.classList.add('hidden');
+      el.timerPill.classList.remove('anim-urgent');
+    }
+
+    function updateTimerDisplay() {
+      const mins = Math.floor(state.timeLeft / 60);
+      const secs = state.timeLeft % 60;
+      el.timerText.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+      const pct = Math.max(0, Math.min(100, (state.timeLeft / 60) * 100));
+      el.timerBarFill.style.width = `${pct}%`;
+
+      el.timerPill.classList.remove('border-emerald-400', 'text-emerald-300', 'border-amber-400', 'text-amber-300', 'border-rose-500', 'text-rose-400', 'anim-urgent');
+      el.timerBarFill.classList.remove('bg-emerald-400', 'bg-amber-400', 'bg-rose-500');
+
+      if (state.timeLeft > 20) {
+        el.timerPill.classList.add('border-emerald-400', 'text-emerald-300');
+        el.timerBarFill.classList.add('bg-emerald-400');
+      } else if (state.timeLeft > 10) {
+        el.timerPill.classList.add('border-amber-400', 'text-amber-300');
+        el.timerBarFill.classList.add('bg-amber-400');
+      } else {
+        el.timerPill.classList.add('border-rose-500', 'text-rose-400', 'anim-urgent');
+        el.timerBarFill.classList.add('bg-rose-500');
+      }
+    }
+
+    function startOneMinuteTimer() {
+      stopTurnTimer();
+      state.timeLeft = 60;
+      el.timerPill.classList.remove('hidden');
+      updateTimerDisplay();
+
+      state.timerInterval = setInterval(() => {
+        if (state.phase !== 'ANSWER') {
+          stopTurnTimer();
+          return;
+        }
+        state.timeLeft -= 1;
+        updateTimerDisplay();
+
+        if (state.timeLeft > 0 && state.timeLeft <= 10) {
+          sfx.timerTick(state.timeLeft <= 5);
+        }
+
+        if (state.timeLeft <= 0) {
+          handleTimeExpired();
+        }
+      }, 1000);
+    }
+
+    function handleTimeExpired() {
+      if (state.phase !== 'ANSWER') return;
+      stopTurnTimer();
+      state.phase = 'ANIMATING';
+      highlightActiveHud(null);
+      sfx.timeUpAlarm();
+
+      el.askPanel.classList.add('hidden');
+      el.answerPanel.classList.add('hidden');
+      el.waitPanel.classList.remove('hidden');
+
+      const askerNum = state.asker; // Friend who asked the question becomes the attacker!
+      const defenderNum = state.asker === 1 ? 2 : 1; // Player who ran out of time takes the hit!
+      const askerObj = askerNum === 1 ? state.p1 : state.p2;
+      const defenderObj = defenderNum === 1 ? state.p1 : state.p2;
+      const damage = state.currentCorrectAnswer;
+
+      el.waitText.textContent = `⏰ TIME'S UP! Correct answer was ${damage} — ${askerObj.name} counter-attacks for -${damage} HP!`;
+      el.battleMessage.innerHTML = `<span class="text-rose-400 font-extrabold">⏰ 1 MINUTE IS UP!</span> ${defenderObj.name} didn't answer in time! <span class="text-amber-300 font-extrabold">The correct answer is ${damage}</span> — <span class="text-rose-400 font-bold">-${damage} HP</span> deducted from ${defenderObj.customName}!`;
+
+      setTimeout(() => {
+        executeAttackAnimation(askerNum, defenderNum, damage, true);
+      }, 950);
+    }
+
+    function highlightActiveHud(activePlayerNum, roleText = 'YOUR TURN') {
+      el.p1Hud.classList.remove('anim-turn-glow', 'hud-active-p1', 'hud-inactive');
+      el.p2Hud.classList.remove('anim-turn-glow', 'hud-active-p2', 'hud-inactive');
+      el.p1StageSide.classList.remove('opacity-50');
+      el.p2StageSide.classList.remove('opacity-50');
+      el.p1StageMarker.classList.add('hidden');
+      el.p2StageMarker.classList.add('hidden');
+
+      if (activePlayerNum === 1) {
+        // Player 1 is active (Bright Cyan/Gold) -> Player 2 is dimmed
+        el.p1Hud.classList.add('anim-turn-glow', 'hud-active-p1');
+        el.p2Hud.classList.add('hud-inactive');
+        el.p2StageSide.classList.add('opacity-50');
+
+        el.p1TurnRoleBadge.textContent = `★ ${roleText}`;
+        el.p1TurnRoleBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 uppercase tracking-wider shadow';
+        el.p2TurnRoleBadge.textContent = 'WAITING';
+        el.p2TurnRoleBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-900/80 text-slate-400 uppercase tracking-wider';
+
+        el.p1StageMarker.textContent = `▼ ${state.p1.name.toUpperCase()}: ${roleText}`;
+        el.p1StageMarker.className = 'mb-1.5 px-3 py-0.5 rounded-full bg-sky-400 text-slate-950 font-extrabold text-[11px] sm:text-xs shadow-lg border-2 border-white animate-bounce whitespace-nowrap z-30';
+        el.battleLogBox.className = 'bg-sky-950/90 border-2 border-sky-400 rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between gap-2 transition-colors';
+      } else if (activePlayerNum === 2) {
+        // Player 2 is active (Bright Crimson/Gold) -> Player 1 is dimmed
+        el.p2Hud.classList.add('anim-turn-glow', 'hud-active-p2');
+        el.p1Hud.classList.add('hud-inactive');
+        el.p1StageSide.classList.add('opacity-50');
+
+        el.p2TurnRoleBadge.textContent = `★ ${roleText}`;
+        el.p2TurnRoleBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 uppercase tracking-wider shadow';
+        el.p1TurnRoleBadge.textContent = 'WAITING';
+        el.p1TurnRoleBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-900/80 text-slate-400 uppercase tracking-wider';
+
+        el.p2StageMarker.textContent = `▼ ${state.p2.name.toUpperCase()}: ${roleText}`;
+        el.p2StageMarker.className = 'mb-1.5 px-3 py-0.5 rounded-full bg-rose-500 text-white font-extrabold text-[11px] sm:text-xs shadow-lg border-2 border-amber-300 animate-bounce whitespace-nowrap z-30';
+        el.battleLogBox.className = 'bg-rose-950/90 border-2 border-rose-400 rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between gap-2 transition-colors';
+      } else {
+        // Neutral / Animation phase
+        el.p1TurnRoleBadge.textContent = 'BATTLE';
+        el.p1TurnRoleBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 uppercase tracking-wider';
+        el.p2TurnRoleBadge.textContent = 'BATTLE';
+        el.p2TurnRoleBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 uppercase tracking-wider';
+        el.battleLogBox.className = 'bg-slate-800/90 border border-slate-700 rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between gap-2 transition-colors';
+      }
+    }
+
+    function startBattle() {
+      sfx.click();
+      stopTurnTimer();
+
+      state.p1.name = el.p1NameInput.value.trim() || 'You';
+      state.p2.name = state.isCPU ? 'CPU Bot' : (el.p2NameInput.value.trim() || 'Friend');
+      state.p1.customName = el.p1MonsterNameInput.value.trim() || state.p1.monster.name;
+      state.p2.customName = el.p2MonsterNameInput.value.trim() || state.p2.monster.name;
+
+      state.p1.maxHp = Math.max(10, Number(el.p1HpInput.value) || 60);
+      state.p1.hp = state.p1.maxHp;
+      state.p2.maxHp = Math.max(10, Number(el.p2HpInput.value) || 40);
+      state.p2.hp = state.p2.maxHp;
+
+      state.turnCount = 1;
+      state.asker = state.firstAsker;
+      state.stats = { maxHit: 0, solvedCount: 0 };
+
+      // Populate Street Fighter Stage with Live Scanned Card Characters!
+      el.p1MonName.textContent = state.p1.customName;
+      el.p1TrainerTag.textContent = state.p1.name;
+      el.p1TypeBadge.textContent = `${state.p1.monster.icon} ${state.p1.monster.element}`;
+      el.p1SpriteWrap.innerHTML = buildLiveFighterMarkup(state.p1, 1);
+      el.p1SpriteWrap.className = 'w-28 h-36 sm:w-36 sm:h-48 z-10 anim-sf-idle-1 anim-materialize flex items-center justify-center';
+
+      el.p2MonName.textContent = state.p2.customName;
+      el.p2TrainerTag.textContent = state.p2.name;
+      el.p2TypeBadge.textContent = `${state.p2.monster.icon} ${state.p2.monster.element}`;
+      el.p2SpriteWrap.innerHTML = buildLiveFighterMarkup(state.p2, 2);
+      el.p2SpriteWrap.className = 'w-28 h-36 sm:w-36 sm:h-48 z-10 anim-sf-idle-2 anim-materialize flex items-center justify-center';
+
+      el.hudLimitLabel.textContent = state.damageCap ? `Max ${state.damageCap}` : 'No Limit';
+
+      updateHpBars();
+
+      // Switch screens
+      el.setupScreen.classList.add('hidden');
+      el.victoryModal.classList.add('hidden');
+      el.battleScreen.classList.remove('hidden');
+      el.btnHome.classList.remove('hidden');
+
+      sfx.startBattleMusic();
+      resizeFxCanvas();
+      beginAskPhase();
+    }
+
+    function updateHpBars() {
+      [1, 2].forEach((pNum) => {
+        const fighter = pNum === 1 ? state.p1 : state.p2;
+        const bar = pNum === 1 ? el.p1HpBar : el.p2HpBar;
+        const txt = pNum === 1 ? el.p1HpText : el.p2HpText;
+
+        const pct = Math.max(0, Math.min(100, (fighter.hp / fighter.maxHp) * 100));
+        bar.style.width = `${pct}%`;
+        txt.textContent = `${fighter.hp} / ${fighter.maxHp} HP`;
+
+        // Classic RPG HP Bar Color Shift
+        bar.classList.remove('bg-emerald-500', 'bg-amber-400', 'bg-rose-500');
+        if (pct > 50) bar.classList.add('bg-emerald-500');
+        else if (pct > 20) bar.classList.add('bg-amber-400');
+        else bar.classList.add('bg-rose-500');
+      });
+    }
+
+    function beginAskPhase() {
+      stopTurnTimer();
+      state.phase = 'ASK';
+      const askerObj = state.asker === 1 ? state.p1 : state.p2;
+      const defenderObj = state.asker === 1 ? state.p2 : state.p1;
+
+      el.turnBannerText.textContent = `Turn ${state.turnCount} • ${askerObj.name}'s Turn to Ask`;
+      el.phaseBadge.textContent = `${askerObj.name.toUpperCase()} ASKS`;
+      el.phaseBadge.className = 'shrink-0 px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 border border-white text-xs font-extrabold';
+
+      highlightActiveHud(state.asker, 'ASK QUESTION');
+
+      el.askPanel.classList.add('hidden');
+      el.answerPanel.classList.add('hidden');
+      el.waitPanel.classList.add('hidden');
+      el.askError.classList.add('hidden');
+
+      // If CPU is the asker
+      if (state.isCPU && state.asker === 2) {
+        el.battleMessage.innerHTML = `<span class="text-rose-400 font-bold">${askerObj.name}</span> is thinking up a math problem for <span class="text-sky-400 font-bold">${defenderObj.name}</span>...`;
+        el.waitPanel.classList.remove('hidden');
+        el.waitText.textContent = '🤖 CPU Bot is choosing a math question...';
+
+        setTimeout(() => {
+          const gen = generateRandomQuestion();
+          submitQuestion(gen.question, gen.answer);
+        }, 1100);
+        return;
+      }
+
+      // Human Asker
+      el.battleMessage.innerHTML = `<span class="text-amber-300 font-bold">${askerObj.name}</span>: Ask <span class="text-emerald-300 font-bold">${defenderObj.name}</span> a math question!`;
+      el.askPanel.classList.remove('hidden');
+      el.questionInput.value = '';
+      el.questionInput.focus();
+    }
+
+    function submitQuestion(qText, ansNum) {
+      state.currentQuestionText = qText;
+      state.currentCorrectAnswer = ansNum;
+      state.phase = 'ANSWER';
+      sfx.questionSent();
+
+      const defenderNum = state.asker === 1 ? 2 : 1;
+      const defenderObj = defenderNum === 1 ? state.p1 : state.p2;
+      const askerObj = state.asker === 1 ? state.p1 : state.p2;
+
+      el.turnBannerText.textContent = `Turn ${state.turnCount} • ${defenderObj.name}'s Turn to Solve (1:00)`;
+      el.phaseBadge.textContent = `${defenderObj.name.toUpperCase()} SOLVES`;
+      el.phaseBadge.className = 'shrink-0 px-2.5 py-1 rounded-lg bg-emerald-400 text-slate-950 border border-white text-xs font-extrabold';
+
+      highlightActiveHud(defenderNum, 'SOLVE & ATTACK');
+
+      el.askPanel.classList.add('hidden');
+      el.answerPanel.classList.add('hidden');
+      el.waitPanel.classList.add('hidden');
+
+      // Start the 1-minute countdown timer!
+      startOneMinuteTimer();
+
+      // If CPU is defending/answering
+      if (state.isCPU && defenderNum === 2) {
+        el.battleMessage.innerHTML = `${askerObj.name} asked <span class="font-mono text-amber-300 font-bold">${qText}</span>! <span class="text-rose-400 font-bold">CPU Bot</span> has 1:00 to solve...`;
+        el.waitPanel.classList.remove('hidden');
+        el.waitText.textContent = `🤖 CPU Bot is solving: ${qText} = ?`;
+
+        setTimeout(() => {
+          if (state.phase !== 'ANSWER') return;
+          // CPU gets it right ~80% of the time so the player has a fun, winnable duel
+          const getsItRight = Math.random() < 0.80;
+          const cpuGuess = getsItRight ? ansNum : ansNum + (Math.random() < 0.5 ? 2 : -1);
+          resolveAnswer(cpuGuess);
+        }, 1600);
+        return;
+      }
+
+      // Human Defender
+      el.battleMessage.innerHTML = `<span class="text-emerald-300 font-bold">${defenderObj.name}</span>: Solve <span class="font-mono text-amber-300 font-bold">${qText}</span> before <span class="text-rose-400 font-bold">1:00</span> runs out or ${askerObj.name} counter-attacks!`;
+      el.displayQuestion.textContent = `${qText} =`;
+      el.answerPanel.classList.remove('hidden');
+      el.answerInput.value = '';
+      el.answerInput.focus();
+    }
+
+    function executeAttackAnimation(attackerNum, targetNum, damage, isCounterAttack = false) {
+      const attackerObj = attackerNum === 1 ? state.p1 : state.p2;
+      const targetObj = targetNum === 1 ? state.p1 : state.p2;
+
+      const attackerSprite = attackerNum === 1 ? el.p1SpriteWrap : el.p2SpriteWrap;
+      const targetSprite = targetNum === 1 ? el.p1SpriteWrap : el.p2SpriteWrap;
+      const targetFloat = targetNum === 1 ? el.p1DamageFloat : el.p2DamageFloat;
+
+      if (damage > state.stats.maxHit) state.stats.maxHit = damage;
+
+      sfx.attackLaunch(attackerObj.monster.element);
+      el.waitText.textContent = isCounterAttack
+        ? `⚡ COUNTER-ATTACK! ${attackerObj.customName} blasts for ${damage} HP!`
+        : `💥 ${damage} HIT COMBO! ${attackerObj.customName} attacks!`;
+
+      // Street Fighter Dash-In Strike & Special Blast Animation on Live Scanned Character
+      const idleClass = attackerNum === 1 ? 'anim-sf-idle-1' : 'anim-sf-idle-2';
+      const attackClass = attackerNum === 1 ? 'anim-sf-attack-1' : 'anim-sf-attack-2';
+      const hitClass = targetNum === 1 ? 'anim-sf-hit-1' : 'anim-sf-hit-2';
+      const targetIdleClass = targetNum === 1 ? 'anim-sf-idle-1' : 'anim-sf-idle-2';
+
+      attackerSprite.classList.remove(idleClass);
+      attackerSprite.classList.add(attackClass);
+      setTimeout(() => {
+        attackerSprite.classList.remove(attackClass);
+        attackerSprite.classList.add(idleClass);
+      }, 680);
+
+      // Launch Street Fighter fireball & trigger knockback on arrival
+      spawnAttackEffect(attackerNum, attackerObj.monster.color, () => {
+        sfx.hitImpact();
+        el.arenaContainer.classList.add('anim-shake');
+        targetSprite.classList.remove(targetIdleClass);
+        targetSprite.classList.add(hitClass);
+
+        // Subtract HP (down to 0 minimum)
+        const oldHp = targetObj.hp;
+        targetObj.hp = Math.max(0, targetObj.hp - damage);
+        updateHpBars();
+
+        // Show floating arcade "-6 HIT!" text above hit fighter
+        targetFloat.textContent = `-${damage} HIT!`;
+        targetFloat.className = 'absolute -top-8 left-1/2 font-extrabold text-2xl sm:text-4xl text-amber-300 drop-shadow-[0_3px_2px_rgba(220,38,38,1)] z-30 pointer-events-none whitespace-nowrap anim-damage-pop';
+
+        el.battleMessage.innerHTML = `${targetObj.customName} took <span class="text-rose-400 font-extrabold">${damage} damage</span>! (${oldHp} HP → <span class="text-amber-300 font-extrabold">${targetObj.hp} HP</span>)`;
+
+        setTimeout(() => {
+          el.arenaContainer.classList.remove('anim-shake');
+          targetSprite.classList.remove(hitClass);
+          if (targetObj.hp > 0) targetSprite.classList.add(targetIdleClass);
+          targetFloat.classList.add('hidden');
+          checkKnockoutOrNextTurn(attackerNum, targetNum);
+        }, 1250);
+      });
+    }
+
+    function resolveAnswer(userAnswer) {
+      if (state.phase !== 'ANSWER') return;
+      stopTurnTimer();
+      state.phase = 'ANIMATING';
+      highlightActiveHud(null);
+
+      el.askPanel.classList.add('hidden');
+      el.answerPanel.classList.add('hidden');
+      el.waitPanel.classList.remove('hidden');
+
+      const attackerNum = state.asker === 1 ? 2 : 1; // Defender who answered gets to attack!
+      const targetNum = state.asker; // Original asker takes the damage!
+      const attackerObj = attackerNum === 1 ? state.p1 : state.p2;
+      const defenderObj = targetNum === 1 ? state.p1 : state.p2;
+
+      const isCorrect = Number(userAnswer) === state.currentCorrectAnswer;
+
+      if (isCorrect) {
+        const damage = state.currentCorrectAnswer;
+        state.stats.solvedCount += 1;
+        el.battleMessage.innerHTML = `<span class="text-emerald-400 font-extrabold">CORRECT!</span> ${attackerObj.customName} unleashes a <span class="text-amber-300 font-bold">${damage} HP</span> ${attackerObj.monster.element} attack!`;
+        executeAttackAnimation(attackerNum, targetNum, damage, false);
+      } else {
+        // WRONG ANSWER / MISS -> Point out the exact correct answer amount AND deduct that exact HP from the player who got it wrong!
+        sfx.miss();
+        const correctAmt = state.currentCorrectAnswer;
+        el.waitText.textContent = `❌ Wrong! Correct answer is ${correctAmt} — ${defenderObj.customName} counter-attacks ${attackerObj.name} for -${correctAmt} HP!`;
+        el.battleMessage.innerHTML = `<span class="text-rose-400 font-extrabold">WRONG ANSWER!</span> ${attackerObj.name} answered <span class="underline">${userAnswer}</span>, but <span class="text-amber-300 font-extrabold">the correct answer is ${correctAmt}</span>! <span class="text-rose-400 font-bold">-${correctAmt} HP</span> deducted from ${attackerObj.customName}!`;
+
+        // Counter-attack from the asker (targetNum) onto the player who answered wrong (attackerNum) for correctAmt damage!
+        setTimeout(() => {
+          executeAttackAnimation(targetNum, attackerNum, correctAmt, true);
+        }, 850);
+      }
+    }
+
+    function checkKnockoutOrNextTurn(attackerNum, targetNum) {
+      const targetObj = targetNum === 1 ? state.p1 : state.p2;
+      const attackerObj = attackerNum === 1 ? state.p1 : state.p2;
+
+      if (targetObj.hp <= 0) {
+        stopTurnTimer();
+        state.phase = 'GAMEOVER';
+        highlightActiveHud(null);
+        const targetSprite = targetNum === 1 ? el.p1SpriteWrap : el.p2SpriteWrap;
+        targetSprite.classList.remove('anim-idle-1', 'anim-idle-2', 'anim-sf-idle-1', 'anim-sf-idle-2');
+        targetSprite.classList.add(targetNum === 1 ? 'anim-sf-ko-1' : 'anim-sf-ko-2');
+
+        el.battleMessage.innerHTML = `💀 <span class="text-rose-400 font-extrabold">K.O.! ${targetObj.customName}</span> is down! <span class="text-amber-300 font-extrabold">${attackerObj.name} wins!</span>`;
+
+        setTimeout(() => {
+          sfx.victory();
+          el.winnerSpriteBox.innerHTML = buildLiveFighterMarkup(attackerObj, attackerNum);
+          el.winnerTitle.textContent = `🏆 K.O.! ${attackerObj.name} Wins!`;
+          el.winnerSubtitle.textContent = `${attackerObj.customName} defeated ${targetObj.customName}!`;
+          el.statTurns.textContent = state.turnCount;
+          el.statMaxHit.textContent = `${state.stats.maxHit} HP`;
+          el.statSolved.textContent = state.stats.solvedCount;
+          el.victoryModal.classList.remove('hidden');
+        }, 1050);
+        return;
+      }
+
+      // Switch Roles: Now the previous defender becomes the new asker!
+      state.asker = state.asker === 1 ? 2 : 1;
+      state.turnCount += 1;
+      beginAskPhase();
+    }
+
+    // --- 9. EVENT LISTENERS ---
+    el.mode2P.addEventListener('click', () => {
+      sfx.click();
+      state.isCPU = false;
+      updateSetupToggles();
+    });
+
+    el.modeCPU.addEventListener('click', () => {
+      sfx.click();
+      state.isCPU = true;
+      updateSetupToggles();
+    });
+
+    el.firstP1.addEventListener('click', () => {
+      sfx.click();
+      state.firstAsker = 1;
+      updateSetupToggles();
+    });
+
+    el.firstP2.addEventListener('click', () => {
+      sfx.click();
+      state.firstAsker = 2;
+      updateSetupToggles();
+    });
+
+    el.cap25.addEventListener('click', () => {
+      sfx.click();
+      state.damageCap = 25;
+      updateSetupToggles();
+    });
+
+    el.capNone.addEventListener('click', () => {
+      sfx.click();
+      state.damageCap = null;
+      updateSetupToggles();
+    });
+
+    el.btnStartBattle.addEventListener('click', startBattle);
+
+    // Card Scanner Station Listeners
+    document.querySelectorAll('.open-scanner-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        openCardScanner(Number(btn.dataset.scanPlayer));
+      });
+    });
+
+    document.querySelectorAll('.cycle-spirit').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        sfx.click();
+        const pNum = Number(btn.dataset.cycle);
+        const pObj = pNum === 1 ? state.p1 : state.p2;
+        pObj.monsterIndex = (pObj.monsterIndex + 1) % MONSTERS.length;
+        pObj.monster = MONSTERS[pObj.monsterIndex];
+        if (pNum === 1) el.p1MonsterNameInput.value = pObj.monster.name;
+        else el.p2MonsterNameInput.value = pObj.monster.name;
+        renderSetupCards(pNum);
+      });
+    });
+
+    el.btnCloseScanner.addEventListener('click', () => {
+      sfx.click();
+      closeCardScanner();
+    });
+
+    el.btnCaptureCard.addEventListener('click', confirmCardScanAndSummon);
+
+    el.cardFileInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        state.pendingUploadedDataUrl = ev.target.result;
+        stopCameraStream();
+        el.cameraVideo.classList.add('hidden');
+        el.cameraFallbackBox.classList.add('hidden');
+        el.capturedCardPreview.src = state.pendingUploadedDataUrl;
+        el.capturedCardPreview.classList.remove('hidden');
+        sfx.click();
+        await runLiveCardRecognition(state.pendingUploadedDataUrl);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Send custom question
+    el.btnSendQ.addEventListener('click', () => {
+      const parsed = parseMathExpression(el.questionInput.value);
+      if (!parsed.valid) {
+        el.askError.textContent = parsed.error;
+        el.askError.classList.remove('hidden');
+        sfx.miss();
+        return;
+      }
+      el.askError.classList.add('hidden');
+      submitQuestion(parsed.question, parsed.answer);
+    });
+
+    el.questionInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') el.btnSendQ.click();
+    });
+
+    // Random question button
+    el.btnRandomQ.addEventListener('click', () => {
+      sfx.click();
+      const gen = generateRandomQuestion();
+      el.questionInput.value = gen.question;
+      el.askError.classList.add('hidden');
+      el.questionInput.focus();
+    });
+
+    // Quick preset chips
+    document.querySelectorAll('.quick-q').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        sfx.click();
+        el.questionInput.value = chip.dataset.q;
+        el.askError.classList.add('hidden');
+        el.questionInput.focus();
+      });
+    });
+
+    // Submit answer to attack
+    el.btnSubmitAnswer.addEventListener('click', () => {
+      const rawVal = el.answerInput.value.trim();
+      if (rawVal === '') {
+        el.answerInput.focus();
+        return;
+      }
+      resolveAnswer(Number(rawVal));
+    });
+
+    el.answerInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') el.btnSubmitAnswer.click();
+    });
+
+    // Navigation & Modals
+    el.btnHome.addEventListener('click', () => {
+      sfx.click();
+      stopTurnTimer();
+      sfx.stopBattleMusic(true);
+      el.battleScreen.classList.add('hidden');
+      el.victoryModal.classList.add('hidden');
+      el.btnHome.classList.add('hidden');
+      el.setupScreen.classList.remove('hidden');
+    });
+
+    el.btnRematch.addEventListener('click', startBattle);
+
+    el.btnChangeMonsters.addEventListener('click', () => {
+      sfx.click();
+      stopTurnTimer();
+      sfx.stopBattleMusic(true);
+      el.victoryModal.classList.add('hidden');
+      el.battleScreen.classList.add('hidden');
+      el.btnHome.classList.add('hidden');
+      el.setupScreen.classList.remove('hidden');
+    });
+
+    el.btnSound.addEventListener('click', () => {
+      sfx.enabled = !sfx.enabled;
+      el.btnSound.textContent = sfx.enabled ? '🔊 Music & SFX: ON' : '🔇 Music & SFX: OFF';
+      if (sfx.enabled) {
+        sfx.click();
+        if (sfx.isBattleMusicActive) sfx.startBattleMusic();
+      } else {
+        sfx.stopBattleMusic(false);
+      }
+    });
+
+    el.btnRules.addEventListener('click', () => {
+      sfx.click();
+      el.rulesModal.classList.remove('hidden');
+    });
+
+    el.btnCloseRules.addEventListener('click', () => {
+      sfx.click();
+      el.rulesModal.classList.add('hidden');
+    });
+
+    el.btnGotItRules.addEventListener('click', () => {
+      sfx.click();
+      el.rulesModal.classList.add('hidden');
+    });
+
+    window.addEventListener('resize', resizeFxCanvas);
+
+    // Initialize App on Load
+    window.onload = function () {
+      renderSetupCards();
+      updateSetupToggles();
+    };
+  </script>
+</body>
+</html>
